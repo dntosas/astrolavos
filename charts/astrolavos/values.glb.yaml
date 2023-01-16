@@ -1,0 +1,209 @@
+astrolavos:
+
+  containers:
+    astrolavos:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 64Mi
+
+  istio:
+    sidecar:
+      enabled: true
+      egress:
+        hosts:
+        - rest/*
+
+  configMaps:
+    enabled: true
+    cms:
+      - name: config
+        mountPath: /etc/astrolavos
+        fileName: config.yaml
+        data: |
+          endpoints:
+            - domain: "astrolavos.private.k8s.global.thebeat.co/latency"
+              interval: 5s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos.private.global.thebeat.co/latency"
+              interval: 5s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos-ar/latency"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "astrolavos.private.k8s.argentina.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos-cl/latency"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "astrolavos.private.k8s.chile.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos-co/latency"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "astrolavos.private.k8s.colombia.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos-gr/latency"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "astrolavos.private.k8s.greece.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos-mx/latency"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "astrolavos.private.k8s.mexico.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos-pe/latency"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "astrolavos.private.k8s.peru.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress"
+              https: true
+            - domain: "rest-gr.rest.svc.cluster.local"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-co.rest.svc.cluster.local"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-cl.rest.svc.cluster.local"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-mx.rest.svc.cluster.local"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-pe.rest.svc.cluster.local"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-ar.rest.svc.cluster.local"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-ar.rest.svc"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-ar.rest"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest.rest.svc.cluster.local"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest.rest.svc"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest.rest"
+              interval: 1s
+              tag: "federation"
+              https: false
+            - domain: "rest-gr.taxibeat.com"
+              interval: 1s
+              tag: "public-ingress"
+              https: true
+            - domain: "astrolavos.private.k8s.global.thebeat.co/latency"
+              interval: 5s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+            - domain: "astrolavos.private.global.thebeat.co/latency"
+              interval: 5s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+            - domain: "astrolavos-ar/latency"
+              interval: 1s
+              tag: "internal-cpool"
+              https: false
+              reuseConnection: "true"
+            - domain: "astrolavos.private.k8s.argentina.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+            - domain: "astrolavos-cl/latency"
+              interval: 1s
+              tag: "internal-cpool"
+              https: false
+              reuseConnection: "true"
+            - domain: "astrolavos.private.k8s.chile.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+            - domain: "astrolavos-co/latency"
+              interval: 1s
+              tag: "internal-cpool"
+              https: false
+              reuseConnection: "true"
+            - domain: "astrolavos.private.k8s.colombia.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+            - domain: "astrolavos-gr/latency"
+              interval: 1s
+              tag: "internal-cpool"
+              https: false
+              reuseConnection: "true"
+            - domain: "astrolavos.private.k8s.greece.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+            - domain: "astrolavos-mx/latency"
+              interval: 1s
+              tag: "internal-cpool"
+              https: false
+              reuseConnection: "true"
+            - domain: "astrolavos.private.k8s.mexico.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+            - domain: "astrolavos-pe/latency"
+              interval: 1s
+              tag: "internal-cpool"
+              https: false
+              reuseConnection: "true"
+            - domain: "astrolavos.private.k8s.peru.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress-cpool"
+              https: true
+              reuseConnection: "true"
+      - name: cronjob
+        mountPath: /etc/astrolavos/cronjob
+        fileName: config.yaml
+        data: |
+          endpoints:
+            - domain: "astrolavos:80"
+              tag: "cronjob"
+              prober: "tcp"
+            - domain: "astrolavos.private.global.thebeat.co.:443"
+              tag: "cronjob"
+              prober: "tcp"

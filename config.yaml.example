@@ -1,0 +1,7 @@
+endpoints:
+  - domain: "www.thebeat.co"
+    interval: 5
+    https: true
+  - domain: "www.google.com"
+    interval: 7
+    https: false

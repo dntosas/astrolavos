@@ -1,0 +1,32 @@
+astrolavos:
+  configMaps:
+    enabled: true
+    cms:
+      - name: config
+        mountPath: /etc/astrolavos
+        fileName: config.yaml
+        data: |
+          endpoints:
+            - domain: "astrolavos.private.k8s.testing.thebeat.co/latency"
+              interval: 5s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos.private.testing.thebeat.co/latency"
+              interval: 5s
+              tag: "private-ingress"
+              https: true
+            - domain: "astrolavos.private.k8s.sandbox.thebeat.co/latency"
+              interval: 5s
+              tag: "private-ingress"
+              https: true
+      - name: cronjob
+        mountPath: /etc/astrolavos/cronjob
+        fileName: config.yaml
+        data: |
+          endpoints:
+            - domain: "astrolavos:80"
+              tag: "cronjob"
+              prober: "tcp"
+            - domain: "astrolavos.private.testing.thebeat.co.:443"
+              tag: "cronjob"
+              prober: "tcp"

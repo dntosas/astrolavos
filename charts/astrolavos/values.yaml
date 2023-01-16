@@ -1,0 +1,143 @@
+global:
+  nameOverride: "astrolavos"
+  fullnameOverride: "astrolavos"
+  labels:
+    domain: "infrastructure"
+    team: "sre-east-side"
+
+astrolavos:
+  containers:
+    astrolavos:
+      image:
+        registry: "registry.private.k8s.management.thebeat.co/beat"
+        name: astrolavos
+        tag: latest
+        pullPolicy: Always
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+      livenessProbe:
+        httpGet:
+          path: "/live"
+          port: "http"
+      readinessProbe:
+        httpGet:
+          path: "/ready"
+          port: "http"
+
+  cronJobs:
+    enabled: true
+    jobs:
+      astrolavos-cronjob:
+        enabled: true
+        schedule: "*/5 * * * *"
+        backoffLimit: 2
+        successfulHistoryLimit: 1
+        failedHistoryLimit: 3
+        concurrencyPolicy: Forbid
+        restartPolicy: OnFailure
+        image:
+          registry: "registry.private.k8s.management.thebeat.co/beat"
+          name: astrolavos
+          tag: latest
+          pullPolicy: Always
+        extraArgs:
+          - "-oneoff"
+          - "-config-path"
+          - "/etc/astrolavos/cronjob"
+        env:
+          ASTROLAVOS_PROM_PUSH_GW: "prometheus-pushgateway.kube-monitoring.svc.cluster.local.:9091"
+
+  service:
+    type: ClusterIP
+    ports:
+      - port: 80
+        targetPort: "3000"
+        appProtocol: "HTTP"
+        name: "http"
+
+  ingress:
+    enabled: true
+    host: astrolavos
+    class:
+      - public
+      - private
+      - dashboard
+    cluster: stress
+
+  ingresses:
+    api:
+      enabled: true
+      # type can be either public, private, or dashboard
+      type: private
+      annotations: {}
+      path: /
+      host: astrolavos
+      clusterSuffix: private.k8s.STACK.thebeat.co
+
+  monitoring:
+    enabled: true
+    path: /metrics
+  tracing:
+    enabled: false
+  blackboxProbe:
+    enabled: false
+
+  autoscaling:
+    enabled: true
+    minReplicas: "3"
+    maxReplicas: "5"
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: "60%"
+
+  priorityClassName: "application-monitoring-critical"
+
+  istio:
+    enabled: true
+    federation:
+      enabled: true
+      stackSuffix: dev
+    sidecar:
+      enabled: true
+      hosts:
+        - rest/rest.rest.svc.cluster.local
+
+  configMaps:
+    enabled: true
+    cms:
+      - name: config
+        mountPath: /etc/astrolavos
+        fileName: config.yaml
+        data: |
+          endpoints:
+            - domain: "astrolavos-glb/latency"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "astrolavos.private.k8s.global.thebeat.co/latency"
+              interval: 1s
+              tag: "private-ingress"
+              https: true
+            - domain: "rest.rest"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "rest.rest.svc"
+              interval: 1s
+              tag: "internal"
+              https: false
+            - domain: "rest.rest.svc.cluster.local"
+              interval: 1s
+              tag: "internal"
+              https: false
+      - name: cronjob
+        mountPath: /etc/astrolavos/cronjob
+        fileName: config.yaml
+        data: |
+          endpoints:
+            - domain: "astrolavos:80"
+              tag: "cronjob"
+              prober: "tcp"

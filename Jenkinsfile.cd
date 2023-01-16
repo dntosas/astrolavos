@@ -1,0 +1,150 @@
+#!/usr/bin/env groovy
+@Library("jenkins-devops-scripts") _
+
+properties([
+  buildDiscarder(logRotator(daysToKeepStr: '', numToKeepStr: '20')),
+])
+node('slave') {
+    // Initialize Libraries
+    def config_utils = new com.beat.utilities.config()
+    def git_utils = new com.beat.utilities.github()
+    def helm_utils = new com.beat.utilities.helm3(this)
+    def stack_utils = new com.beat.utilities.stack()
+    def monitoring_utils = new com.beat.utilities.monitoring()
+    def terraform_utils = new com.beat.utilities.terraform12()
+
+    // Define Git Specs
+    def project = git_utils.determineRepoName(env.JOB_NAME)
+    def commiter = git_utils.determineGitCommiter()
+
+    // Variable to hold all stacks to deploy to
+    def stacks = []
+    def notification_utils = new com.beat.utilities.notifications('odcLcGdmQIkvVQ3YIXGRTAQs', project, env.BUILD_URL, env.BUILD_NUMBER)
+    notification_utils.defaultServerDeploymentsChannel = "#devops-ci"
+
+    // Init Grafana Libs
+    withCredentials([
+        string(credentialsId: 'GRAFANA_MANAGEMENT_GENERIC_PIPELINE_API_KEY', variable: 'grafana_api_key'),
+    ]) {
+        grafanaAPIKey = grafana_api_key
+    }
+    def grafana_utils = new com.beat.utilities.grafana("https://grafana.thebeat.co", "${grafanaAPIKey}")
+
+    // Define shared Docker Specs
+    def dockerRegistry = config_utils.registryDNS()
+    def dockerImageName = "${dockerRegistry}/beat/astrolavos"
+    def dockerImageTag = "v1.0.0"
+
+    // Define shared Helm Specs
+    def helmName = "astrolavos"
+    def helmNamespace = "platform"
+    def helmTag = "v1.0.0"
+
+    stage('Clone repository') {
+    /* Let's make sure we have the repository cloned to our workspace */
+        deleteDir()
+        checkout scm
+
+        echo "This is the ${env.TAG_NAME} tag"
+        dockerImageTag = env.TAG_NAME
+        result = stack_utils.findStacksFromTags(env.TAG_NAME)
+        stacks = result[0]
+        prod = result[1]
+        // Check if it's a tag that container dev (we do not want to deploy the monitoring stack for every qa and ta environment)
+        def devenv = env.TAG_NAME =~ /dev/;
+        if (devenv) {
+            stacks = ["dev"]
+        }
+    }
+
+    // Define variables for publishing to chartmuseum
+    envVarMapManagement = stack_utils.managementstackVariables()
+    kubeconfig_id_mgmt = "KUBECONFIG_${envVarMapManagement.KUBERNETES_CLUSTER}"
+
+    // Send notification for deployment starting
+    notification_utils.slackNotifyDeploymentStarted(stacks)
+
+    // Deploy Grafana Dashboards
+    monitoring_utils.grafanaManagementConfig("grafana-dashboards")
+
+    stage('Build & Push Docker Image') {
+        img = docker.build("${dockerImageName}", ".")
+        docker.withRegistry("https://${dockerRegistry}") {
+            img.push("${dockerImageTag}")
+        }
+    }
+
+    stage("Helm Lint") {
+        try {
+            helm_utils.helmLint("${kubeconfig_id_mgmt}", "charts/${helmName}")
+        } catch (e) {
+            notification_utils.slackNotifyDeploymentFailure("mgmt", STAGE_NAME)
+            print(e)
+            throw e
+        }
+    }
+
+    for (stack in stacks) {
+
+        // Initialize setList
+        def setList = ""
+
+        // Initialize envVarMapping for Stack + Global Deploy Values
+        envVarMapping = stack_utils.stackVariables(stack)
+
+        // Initialize KubeConfig for Stack
+        kubeconfig_id = "KUBECONFIG_${envVarMapping.KUBERNETES_CLUSTER}"
+
+        def market = stack_utils.stackCountry(stack)
+
+        // Get certificate ARN
+        def certificateARN = terraform_utils.output(
+            "beat-${envVarMapping.ACCOUNT_NAME}/${envVarMapping.AWS_REGION}/${market}/acm/ingress",
+            "this_acm_certificate_arn",
+            "beat-infra-${envVarMapping.ACCOUNTID}",
+            "us-east-1",
+        )
+
+        stage("Deploy Helm Chart at ${stack}") {
+
+            try {
+                def dockerFlags = ["-v ${env.WORKSPACE}/charts:/charts"]
+                def options = [ "--set astrolavos.containers.astrolavos.image.tag=${dockerImageTag}",
+                                "--set astrolavos.cronJobs.jobs.astrolavos-cronjob.image.tag=${dockerImageTag}",
+                                "--set astrolavos.changeCause=Jenkins=\"${RUN_DISPLAY_URL} Commiter=${commiter}\"",
+                                "--set astrolavos.istio.federation.stackSuffix=${stack}",
+                                "--set astrolavos.ingresses.api.clusterSuffix=private.k8s.${envVarMapping.KUBERNETES_CLUSTER}",
+                                "--set astrolavos.ingress.cluster=${stack_utils.stackCountry(stack)}",
+                                "--set astrolavos.ingress.extraALBParams.certificateARN=${certificateARN}",
+                                "--values /charts/${helmName}/values.yaml"]
+
+                if (fileExists("charts/${helmName}/values.${stack}.yaml")) {
+                    options << "--values /charts/${helmName}/values.${stack}.yaml"
+                }
+
+                helm_utils.helmDeploy("${kubeconfig_id}", "${helmTag}", "${helmNamespace}", "${options.join(' ')}", "${helmName}", "/charts/${helmName}", "${dockerFlags.join(' ')}")
+
+                // Create Annotation
+                def String[] grafanaTags = [helmName, stack, 'astrolavos', helmTag]
+                grafana_utils.createAnnotation(new Date().getTime(), new Date().getTime(), grafanaTags, "Deployment")
+            } catch (e) {
+                print(e)
+                helm_utils.helmRollback("${kubeconfig_id}", 0, "${helmName}", "${helmNamespace}")
+                notification_utils.slackNotifyDeploymentFailure(stack, STAGE_NAME)
+                throw e
+            }
+
+            notification_utils.slackNotifyDeploymentSuccess(stack)
+        }
+
+        stage("Apply Prometheus rule for ${stack}") {
+            try {
+                monitoring_utils.prometheusConfig(kubeconfig_id, helmNamespace, 'monitoring/prometheus', stack)
+            } catch (e) {
+                notification_utils.slackNotifyDeploymentFailure(stack, STAGE_NAME)
+                throw e
+            }
+        }
+
+    }
+}
