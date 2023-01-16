@@ -1,0 +1,5 @@
+---
+endpoints:
+  - domain: "www.httpbin.org"
+    interval: 5s
+    https: true
