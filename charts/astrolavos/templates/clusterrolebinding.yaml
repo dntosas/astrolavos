@@ -1,0 +1,15 @@
+{{- if and .Values.rbac.create .Values.rbac.clusterRole }}
+apiVersion: rbac.authorization.k8s.io/{{ .Values.rbac.apiVersion }}
+kind: ClusterRoleBinding
+metadata:
+  name: {{ template "astrolavos.fullname" . }}
+  labels: {{ include "astrolavos.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ template "astrolavos.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ template "astrolavos.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

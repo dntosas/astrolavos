@@ -1,0 +1,20 @@
+groups:
+  - name: astrolavos-cronjob-network-alerts
+    rules:
+    - alert: TCPErrors
+      expr: sum(rate(astrolavos_errors_total{tag="cronjob"}[5m])) > 1
+      for: 11m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Astrolavos network cronjob checks fail"
+        description: "Astrolavos network cronjob checks failing"
+
+    - alert: MissingAstrolavosCronjobMetrics
+      expr: absent(astrolavos_requests_total{tag="cronjob"}) == 1
+      for: 120m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Astrolavos network cronjob tests don't emmit metrics anymore"
+        description: "Astrolavos network cronjob tests are not emmiting metrics anymore and that might indicate problems of the cronjob"
