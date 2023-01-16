@@ -1,0 +1,22 @@
+apiVersion: v2
+appVersion: 0.0.2
+description: A Helm Chart for deploying Astrolavos Latency Measuring Tool
+home: https://github.com/dntosas/astrolavos
+keywords:
+- astrolavos
+- latency
+- httptrace
+- kubernetes
+maintainers:
+- name: Jim Ntosas
+- name: Andreas Strikos
+name: astrolavos
+sources:
+- https://github.com/dntosas/astrolavos
+version: 0.0.2
+dependencies:
+- name: common
+  repository: "https://charts.bitnami.com/bitnami"
+  tags:
+  - bitnami-common
+  version: 1.x.x
