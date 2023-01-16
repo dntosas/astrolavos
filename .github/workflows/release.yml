@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2.4.0
+        uses: actions/checkout@v3.3.0
       - name: Produce release body
         id: git_log
         uses: beatlabs/release-changelog-action@7ed0cbd206d9098871e3f106f62ee95bd82e28ba
