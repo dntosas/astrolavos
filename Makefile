@@ -52,7 +52,7 @@ helm-docs:
 
 .PHONY: build
 build: ## Build capi-to-argocd-operator binary.
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -mod=vendor ${GOBUILD_OPTS} -o bin/${PROJECT} main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -mod=vendor ${GOBUILD_OPTS} -o bin/${PROJECT} .
 
 .PHONY: run
 run: ## Run the controller from your host against your current kconfig context.

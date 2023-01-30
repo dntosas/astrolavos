@@ -67,18 +67,6 @@ spec:
           args: {{- include "common.tplvalues.render" (dict "value" .Values.args "context" $) | nindent 12 }}
           {{- else }}
           args:
-            {{- if .Values.syncDuration }}
-            - --sync-duration={{ .Values.syncDuration }}
-            {{- end }}
-            {{- if .Values.debugMode }}
-            - --debug
-            {{- end }}
-            {{- if .Values.dryRun }}
-            - --dry-run
-            {{- end }}
-            {{- if .Values.leaderElect }}
-            - --leader-elect
-            {{- end }}
             {{- range $key, $value := .Values.extraArgs }}
               {{- if $value }}
             - --{{ $key }}={{ $value }}
@@ -97,8 +85,8 @@ spec:
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
-              path: /healthz
-              port: 8081
+              path: /live
+              port: 3000
             initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
@@ -110,8 +98,8 @@ spec:
           {{- if .Values.readinessProbe.enabled }}
           readinessProbe:
             httpGet:
-              path: /readyz
-              port: 8081
+              path: /ready
+              port: 3000
             initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
@@ -142,6 +130,15 @@ spec:
           {{- if .Values.resources }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
           {{- end }}
+          volumeMounts:
+          - name: config
+            mountPath: "/etc/astrolavos/config.yaml"
+            subPath: "config.yaml"
+            readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: config
         {{- if .Values.sidecars }}
         {{- include "common.tplvalues.render" (dict "value" .Values.sidecars "context" $) | nindent 8 }}
         {{- end }}

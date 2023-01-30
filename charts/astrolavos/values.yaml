@@ -12,9 +12,10 @@ replicaCount: 1
 image:
   registry: ghcr.io
   repository: dntosas/astrolavos
-  tag: v0.0.2
-  pullPolicy: IfNotPresent
-  pullSecrets: []
+  tag: development
+  pullPolicy: Always
+  pullSecrets:
+    - regcred
 
 dryRun: false
 debugMode: false
