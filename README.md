@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/dntosas/astrolavos/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/dntosas/astrolavos/actions/workflows/ci.yml) | [![Go Report](https://goreportcard.com/badge/github.com/dntosas/astrolavos)](https://goreportcard.com/badge/github.com/dntosas/astrolavos) | [![Go Release](https://github.com/dntosas/astrolavos/actions/workflows/go-release.yml/badge.svg)](https://github.com/dntosas/astrolavos/actions/workflows/go-release.yml) | [![Helm Chart Release](https://github.com/dntosas/astrolavos/actions/workflows/helm-release.yml/badge.svg)](https://github.com/dntosas/astrolavos/actions/workflows/helm-release.yml)
 
-![Alt text](./images/astrolavos.png)
+![astrolavos](https://user-images.githubusercontent.com/15010919/215696467-82ef5d9b-8340-4f05-bc44-6e2fe0460e66.png)
 
 Astrolavos (αστρολάβος) is a tool used to measure latencies and network behaviours between our different Kubernetes clusters.
 
