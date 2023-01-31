@@ -2,6 +2,7 @@
 package probers
 
 import (
+	"astrolavos/internal/metrics"
 	"net/http"
 	"sync"
 	"time"
@@ -19,7 +20,7 @@ type Prober interface {
 // Prober needs
 type ProberConfig struct {
 	wg       *sync.WaitGroup
-	promC    *PrometheusClient
+	promC    *metrics.PrometheusClient
 	exit     chan bool
 	endpoint string
 	retries  int
@@ -36,7 +37,7 @@ type HTTPProberConfig struct {
 }
 
 // NewProberConfig is the constructor function for each ProberConfig struct
-func NewProberConfig(w *sync.WaitGroup, endpoint string, retries int, tag string, interval time.Duration, isOneOff, reuseCon bool, promC *PrometheusClient) ProberConfig {
+func NewProberConfig(w *sync.WaitGroup, endpoint string, retries int, tag string, interval time.Duration, isOneOff, reuseCon bool, promC *metrics.PrometheusClient) ProberConfig {
 	p := ProberConfig{
 		wg:       w,
 		promC:    promC,

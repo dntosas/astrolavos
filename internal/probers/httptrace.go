@@ -59,18 +59,18 @@ func (h *HTTPTrace) runOneOff() {
 		}
 	}
 
-	h.promC.updateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
+	h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
 	if !isSuccess {
 		log.Errorf("HTTPTrace (OneOff) of %s error: %v", h, err)
-		h.promC.updateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
+		h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
 	} else {
 		// Update all exposed Prometheus metrics histograms
-		h.promC.updateDNSHistogram(h.endpoint, "httptrace", h.tag, t.dnsDuration)
-		h.promC.updateConnHistogram(h.endpoint, "httptrace", h.tag, t.connDuration)
-		h.promC.updateTLSHistogram(h.endpoint, "httptrace", h.tag, t.tlsDuration)
-		h.promC.updateGotConnHistogram(h.endpoint, "httptrace", h.tag, t.gotConnDuration)
-		h.promC.updateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
-		h.promC.updateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
+		h.promC.UpdateDNSHistogram(h.endpoint, "httptrace", h.tag, t.dnsDuration)
+		h.promC.UpdateConnHistogram(h.endpoint, "httptrace", h.tag, t.connDuration)
+		h.promC.UpdateTLSHistogram(h.endpoint, "httptrace", h.tag, t.tlsDuration)
+		h.promC.UpdateGotConnHistogram(h.endpoint, "httptrace", h.tag, t.gotConnDuration)
+		h.promC.UpdateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
+		h.promC.UpdateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
 	}
 
 }
@@ -88,18 +88,18 @@ func (h *HTTPTrace) runInterval() {
 		case <-ticker.C:
 			log.Debugf("HTTPTrace for %s starts new trace probe", h)
 			t, err := h.trace()
-			h.promC.updateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
+			h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
 			if err != nil {
 				log.Errorf("HTTPTrace of %s error: %v", h, err)
-				h.promC.updateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
+				h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
 			} else {
 				// Update all exposed Prometheus metrics histograms
-				h.promC.updateDNSHistogram(h.endpoint, "httptrace", h.tag, t.dnsDuration)
-				h.promC.updateConnHistogram(h.endpoint, "httptrace", h.tag, t.connDuration)
-				h.promC.updateTLSHistogram(h.endpoint, "httptrace", h.tag, t.tlsDuration)
-				h.promC.updateGotConnHistogram(h.endpoint, "httptrace", h.tag, t.gotConnDuration)
-				h.promC.updateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
-				h.promC.updateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
+				h.promC.UpdateDNSHistogram(h.endpoint, "httptrace", h.tag, t.dnsDuration)
+				h.promC.UpdateConnHistogram(h.endpoint, "httptrace", h.tag, t.connDuration)
+				h.promC.UpdateTLSHistogram(h.endpoint, "httptrace", h.tag, t.tlsDuration)
+				h.promC.UpdateGotConnHistogram(h.endpoint, "httptrace", h.tag, t.gotConnDuration)
+				h.promC.UpdateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
+				h.promC.UpdateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
 			}
 		}
 	}

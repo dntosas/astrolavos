@@ -1,11 +1,13 @@
-// Config contains logic that is related with our application's configuration.
+// Package config contains logic that is related with our application's configuration.
 // Configuration can come from environmental variables or yaml config file.
-package main
+package config
 
 import (
 	"fmt"
 	"strconv"
 	"time"
+
+	"astrolavos/internal/machinery"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -23,11 +25,11 @@ type YamlEndpoints struct {
 // yaml config, and verify for each one if they are valid.
 // At the end it returns a list of endpoints structures that can be used
 // further.
-func (r *YamlEndpoints) getCleanEndpoints() ([]*endpoint, error) {
+func (r *YamlEndpoints) getCleanEndpoints() ([]*machinery.Endpoint, error) {
 	if len(r.Endpoints) == 0 {
-		return []*endpoint{}, errors.Errorf("Yaml configuration seems empty or malformed, cannot proceed with no valid endpoints")
+		return []*machinery.Endpoint{}, errors.Errorf("Yaml configuration seems empty or malformed, cannot proceed with no valid endpoints")
 	}
-	cleanEndpoints := []*endpoint{}
+	cleanEndpoints := []*machinery.Endpoint{}
 	for _, req := range r.Endpoints {
 		c, err := req.getCleanEndpoint()
 		if err != nil {
@@ -38,7 +40,7 @@ func (r *YamlEndpoints) getCleanEndpoints() ([]*endpoint, error) {
 
 	}
 	if len(cleanEndpoints) == 0 {
-		return []*endpoint{}, errors.Errorf("No valid endpoints found inside the endpoint sections coming from yaml config")
+		return []*machinery.Endpoint{}, errors.Errorf("No valid endpoints found inside the endpoint sections coming from yaml config")
 	}
 
 	return cleanEndpoints, nil
@@ -59,7 +61,7 @@ type YamlEndpoint struct {
 // getCleanEndpoint holds the logic of checking and creating an endpoint
 // coming from the yaml config and returns an endpoint structure that
 // can be used further in our code.
-func (r *YamlEndpoint) getCleanEndpoint() (*endpoint, error) {
+func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 	var defaultRetries = 3
 	var defaultInterval = 5000 * time.Millisecond
 
@@ -92,32 +94,23 @@ func (r *YamlEndpoint) getCleanEndpoint() (*endpoint, error) {
 		defaultRetries = *r.Retries
 	}
 
-	ep := &endpoint{uri: uri, interval: *r.Interval, tag: r.Tag, retries: defaultRetries, proberType: r.Prober,
-		reuseConnection: r.ReuseConnection,
+	ep := &machinery.Endpoint{URI: uri, Interval: *r.Interval, Tag: r.Tag, Retries: defaultRetries, ProberType: r.Prober,
+		ReuseConnection: r.ReuseConnection,
 	}
 	return ep, nil
 }
 
-type endpoint struct {
-	uri             string
-	interval        time.Duration
-	tag             string
-	retries         int
-	proberType      string
-	reuseConnection bool
-}
-
 // Config holds all our configuration coming from user that our app needs
-type config struct {
-	appPort         int
-	logLevel        string
-	promPushGateway string
-	endpoints       []*endpoint
+type Config struct {
+	AppPort         int
+	LogLevel        string
+	PromPushGateway string
+	Endpoints       []*machinery.Endpoint
 }
 
-// newConfig constructs and returns the struct that will host
+// NewConfig constructs and returns the struct that will host
 // all our configuration variables
-func newConfig(path string) (*config, error) {
+func NewConfig(path string) (*Config, error) {
 
 	initViper(path)
 	r, err := getYamlConfig()
@@ -135,11 +128,11 @@ func newConfig(path string) (*config, error) {
 		return nil, errors.New("Couldn't get a valid integer for the ASTROLAVOS_PORT configuration variable")
 	}
 
-	return &config{
-		appPort:         intPort,
-		logLevel:        viper.GetString("log_level"),
-		promPushGateway: viper.GetString("prom_push_gw"),
-		endpoints:       cleanEndpoints,
+	return &Config{
+		AppPort:         intPort,
+		LogLevel:        viper.GetString("log_level"),
+		PromPushGateway: viper.GetString("prom_push_gw"),
+		Endpoints:       cleanEndpoints,
 	}, nil
 }
 

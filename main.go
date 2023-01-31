@@ -1,6 +1,8 @@
 package main
 
 import (
+	"astrolavos/internal/config"
+	"astrolavos/internal/machinery"
 	"flag"
 	"fmt"
 	"os"
@@ -22,16 +24,16 @@ func main() {
 	flag.Parse()
 	fmt.Printf("Starting Astrolavos version:%s - commit hash:%s\n", Version, CommitHash)
 
-	cfg, err := newConfig(*configPathFlag)
+	cfg, err := config.NewConfig(*configPathFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error:%v\n", err)
 		os.Exit(1)
 	}
 
-	initLogging(cfg.logLevel)
+	initLogging(cfg.LogLevel)
 
-	app := newApp(cfg.appPort, cfg.endpoints, cfg.promPushGateway, *oneOffFlag)
-	if err := app.run(); err != nil {
+	a := machinery.NewAstrolavos(cfg.AppPort, cfg.Endpoints, cfg.PromPushGateway, *oneOffFlag)
+	if err := a.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "error:%v\n", err)
 		os.Exit(1)
 	}

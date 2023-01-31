@@ -1,4 +1,4 @@
-package probers
+package metrics
 
 import (
 	"github.com/prometheus/client_golang/prometheus"
@@ -112,42 +112,42 @@ func NewPrometheusClient(isOneOff bool, promPushGateway string) *PrometheusClien
 	return &PrometheusClient{pusher: pusher}
 }
 
-func (p *PrometheusClient) updateDNSHistogram(endpoint, proberType string, tag string, duration float64) {
+func (p *PrometheusClient) UpdateDNSHistogram(endpoint, proberType string, tag string, duration float64) {
 	dnsLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for DNS part")
 }
 
-func (p *PrometheusClient) updateConnHistogram(endpoint, proberType string, tag string, duration float64) {
+func (p *PrometheusClient) UpdateConnHistogram(endpoint, proberType string, tag string, duration float64) {
 	connLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for Connection part")
 }
 
-func (p *PrometheusClient) updateTLSHistogram(endpoint, proberType string, tag string, duration float64) {
+func (p *PrometheusClient) UpdateTLSHistogram(endpoint, proberType string, tag string, duration float64) {
 	tlsLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for TLS part")
 }
 
-func (p *PrometheusClient) updateGotConnHistogram(endpoint, proberType string, tag string, duration float64) {
+func (p *PrometheusClient) UpdateGotConnHistogram(endpoint, proberType string, tag string, duration float64) {
 	gotConnLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for GotConnection part")
 }
 
-func (p *PrometheusClient) updateFirstByteHistogram(endpoint, proberType string, tag string, duration float64) {
+func (p *PrometheusClient) UpdateFirstByteHistogram(endpoint, proberType string, tag string, duration float64) {
 	firstByteLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for FirstByte part")
 }
 
-func (p *PrometheusClient) updateTotalHistogram(endpoint, proberType string, tag string, duration float64) {
+func (p *PrometheusClient) UpdateTotalHistogram(endpoint, proberType string, tag string, duration float64) {
 	totalLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for Total part")
 }
 
-func (p *PrometheusClient) updateRequestsCounter(endpoint, proberType string, tag, statusCode string) {
+func (p *PrometheusClient) UpdateRequestsCounter(endpoint, proberType string, tag, statusCode string) {
 	totalRequestsCounter.WithLabelValues(endpoint, tag, statusCode, proberType).Inc()
 	log.Debug("Update metric for Total requests counter")
 }
 
-func (p *PrometheusClient) updateErrorsCounter(endpoint, proberType string, tag, errorMsg string) {
+func (p *PrometheusClient) UpdateErrorsCounter(endpoint, proberType string, tag, errorMsg string) {
 	totalErrorsCounter.WithLabelValues(endpoint, tag, errorMsg, proberType).Inc()
 	log.Debug("Update metric for Total errors counter")
 }

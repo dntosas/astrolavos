@@ -58,10 +58,10 @@ func (t *TCP) runOneOff() {
 			}
 		}
 	}
-	t.promC.updateRequestsCounter(t.endpoint, "tcp", t.tag, "")
+	t.promC.UpdateRequestsCounter(t.endpoint, "tcp", t.tag, "")
 	if !isSuccess {
 		log.Errorf("TCP (OneOff) prober of %s error: %v", t, err)
-		t.promC.updateErrorsCounter(t.endpoint, "tcp", t.tag, err.Error())
+		t.promC.UpdateErrorsCounter(t.endpoint, "tcp", t.tag, err.Error())
 	}
 }
 
@@ -79,10 +79,10 @@ func (t *TCP) runInterval() {
 		case <-ticker.C:
 			log.Debugf("TCP for %s starts new trace probe", t)
 			err := t.dial()
-			t.promC.updateRequestsCounter(t.endpoint, "tcp", t.tag, "")
+			t.promC.UpdateRequestsCounter(t.endpoint, "tcp", t.tag, "")
 			if err != nil {
 				log.Errorf("TCP prober of %s error: %v", t, err)
-				t.promC.updateErrorsCounter(t.endpoint, "tcp", t.tag, err.Error())
+				t.promC.UpdateErrorsCounter(t.endpoint, "tcp", t.tag, err.Error())
 			}
 		}
 	}

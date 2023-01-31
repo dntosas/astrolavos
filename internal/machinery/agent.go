@@ -1,7 +1,8 @@
-package main
+package machinery
 
 import (
-	"astrolavos/pkg/probers"
+	"astrolavos/internal/metrics"
+	"astrolavos/internal/probers"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -11,24 +12,24 @@ import (
 type agent struct {
 	probers []probers.Prober
 	wg      *sync.WaitGroup
-	promC   *probers.PrometheusClient
+	promC   *metrics.PrometheusClient
 }
 
 // newAgent is the constructor of Agent struct
-func newAgent(endpoints []*endpoint, isOneOff bool, promC *probers.PrometheusClient) *agent {
+func newAgent(endpoints []*Endpoint, isOneOff bool, promC *metrics.PrometheusClient) *agent {
 	var wg sync.WaitGroup
 	var o probers.Prober
 	probersList := []probers.Prober{}
 
 	for _, e := range endpoints {
-		p := probers.NewProberConfig(&wg, e.uri, e.retries, e.tag, e.interval, isOneOff, e.reuseConnection, promC)
-		switch e.proberType {
+		p := probers.NewProberConfig(&wg, e.URI, e.Retries, e.Tag, e.Interval, isOneOff, e.ReuseConnection, promC)
+		switch e.ProberType {
 		case "tcp":
 			o = probers.NewTCP(p)
 		case "httpTrace":
 			o = probers.NewHTTPTrace(p)
 		default:
-			log.Errorf("Couldn't find a legit prober type: %s", e.proberType)
+			log.Errorf("Couldn't find a legit prober type: %s", e.ProberType)
 			continue
 		}
 

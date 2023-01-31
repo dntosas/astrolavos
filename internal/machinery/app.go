@@ -1,4 +1,4 @@
-package main
+package machinery
 
 import (
 	"context"
@@ -9,33 +9,42 @@ import (
 	"syscall"
 	"time"
 
-	"astrolavos/pkg/handlers"
-	"astrolavos/pkg/probers"
+	"astrolavos/internal/handlers"
+	"astrolavos/internal/metrics"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 )
 
-// app encapsulates information needed for our
+type Endpoint struct {
+	URI             string
+	Interval        time.Duration
+	Tag             string
+	Retries         int
+	ProberType      string
+	ReuseConnection bool
+}
+
+// Astrolavos encapsulates information needed for our
 // application to run.
-type app struct {
+type Astrolavos struct {
 	port     int
 	agent    *agent
 	isOneOff bool
 }
 
 // newApp creates a new application struct.
-func newApp(port int, endpoints []*endpoint, promPushGateway string, isOneOff bool) *app {
-	promC := probers.NewPrometheusClient(isOneOff, promPushGateway)
+func NewAstrolavos(port int, endpoints []*Endpoint, promPushGateway string, isOneOff bool) *Astrolavos {
+	promC := metrics.NewPrometheusClient(isOneOff, promPushGateway)
 	a := newAgent(endpoints, isOneOff, promC)
-	return &app{
+	return &Astrolavos{
 		port:     port,
 		agent:    a,
 		isOneOff: isOneOff,
 	}
 }
 
-func (a *app) runOneOffMode() {
+func (a *Astrolavos) startOneOffMode() {
 	defer a.agent.promC.PrometheusPush()
 
 	log.Debug("Starting OneOff Agent")
@@ -43,11 +52,11 @@ func (a *app) runOneOffMode() {
 	a.agent.wg.Wait()
 }
 
-func (a *app) run() error {
+func (a *Astrolavos) Start() error {
 	if a.isOneOff {
-		a.runOneOffMode()
+		a.startOneOffMode()
 	} else {
-		return a.runServerMode()
+		return a.startServerMode()
 	}
 	log.Debug("Exiting agent now.")
 	return nil
@@ -55,7 +64,7 @@ func (a *app) run() error {
 
 // runServerMode is responsible for running our agent and http components.
 // After starting them it blocks and waits for shutdown signal
-func (a *app) runServerMode() error {
+func (a *Astrolavos) startServerMode() error {
 	// Start the agent before the HTTP part
 	log.Debug("Starting Agent")
 	a.agent.start()
