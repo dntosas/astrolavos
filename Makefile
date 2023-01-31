@@ -56,7 +56,7 @@ build: ## Build astrolavos
 
 .PHONY: run
 run: ## Run astrolavos from local
-	go run -mod=vendor *.go ${ARGS}
+	go run -mod=vendor *.go -config-path ./examples/
 
 .PHONY: docker-build
 docker-build: build ## Build docker image
