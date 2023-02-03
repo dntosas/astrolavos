@@ -2,11 +2,12 @@
 package main
 
 import (
-	"astrolavos/internal/config"
-	"astrolavos/internal/machinery"
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/dntosas/astrolavos/internal/config"
+	"github.com/dntosas/astrolavos/internal/machinery"
 
 	log "github.com/sirupsen/logrus"
 )

@@ -1,4 +1,4 @@
-module astrolavos
+module github.com/dntosas/astrolavos
 
 go 1.19
 

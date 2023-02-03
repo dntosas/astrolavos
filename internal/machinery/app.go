@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"astrolavos/internal/handlers"
-	"astrolavos/internal/metrics"
+	"github.com/dntosas/astrolavos/internal/handlers"
+	"github.com/dntosas/astrolavos/internal/metrics"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"

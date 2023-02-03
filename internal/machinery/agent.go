@@ -2,9 +2,10 @@
 package machinery
 
 import (
-	"astrolavos/internal/metrics"
-	"astrolavos/internal/probers"
 	"sync"
+
+	"github.com/dntosas/astrolavos/internal/metrics"
+	"github.com/dntosas/astrolavos/internal/probers"
 
 	log "github.com/sirupsen/logrus"
 )
