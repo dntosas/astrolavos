@@ -2,10 +2,11 @@
 package probers
 
 import (
-	"astrolavos/internal/metrics"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/dntosas/astrolavos/internal/metrics"
 )
 
 // Prober interface dictates what function each Prober kind struct

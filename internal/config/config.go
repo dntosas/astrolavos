@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"astrolavos/internal/machinery"
+	"github.com/dntosas/astrolavos/internal/machinery"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
