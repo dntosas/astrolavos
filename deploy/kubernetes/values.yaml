@@ -1,0 +1,132 @@
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: "astrolavos"
+commonLabels: {}
+commonAnnotations: {}
+podAnnotations: {}
+podLabels: {}
+
+replicaCount: 1
+
+config:
+  enabled: true
+  application:
+    logLevel: INFO
+  endpoints:
+    - domain: "www.httpbin.org"
+      interval: 10s
+      https: true
+
+image:
+  registry: ghcr.io
+  repository: dntosas/astrolavos
+  tag: v0.0.2
+  pullPolicy: Always
+  pullSecrets: {}
+
+extraArgs: {}
+extraEnvVars:
+  ASTROLAVOS_LOG_LEVEL: INFO
+
+service:
+  enabled: true
+  type: ClusterIP
+  annotations: {}
+  ports:
+    http: 3000
+  nodePorts:
+    http: ""
+  extraPorts: []
+  externalTrafficPolicy: Cluster
+  internalTrafficPolicy: Cluster
+  loadBalancerSourceRanges: []
+  sessionAffinity: None
+  sessionAffinityConfig: {}
+
+containerPorts:
+  http: 3000
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: true
+
+autoscaling:
+  enabled: true
+  minReplicas: "2"
+  maxReplicas: "5"
+  targetCPU: 80
+  targetMemory: 80
+
+containerSecurityContext: {}
+podSecurityContext:
+  enabled: true
+  fsGroup: 1001
+  runAsUser: 1001
+
+resources:
+  limits:
+     cpu: 100m
+     memory: 256Mi
+  requests:
+     cpu: 50m
+     memory: 64Mi
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 1
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 1
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+  successThreshold: 1
+
+affinity: {}
+topologySpreadConstraints: []
+nodeSelector: {}
+tolerations: []
+schedulerName: ""
+updateStrategy: {}
+initContainers:
+
+priorityClassName: ""
+
+podDisruptionBudget:
+  enabled: false
+
+# Prometheus Service Monitor
+serviceMonitor:
+  # -- Create ServiceMonitor resource(s) for scraping metrics using PrometheusOperator
+  enabled: true
+  # -- The namespace in which the ServiceMonitor will be created
+  namespace: ""
+  # -- The interval at which metrics should be scraped
+  interval: 30s
+  # -- The timeout after which the scrape is ended
+  scrapeTimeout: ""
+  # -- Metrics RelabelConfigs to apply to samples before scraping.
+  relabellings: []
+  # -- Metrics RelabelConfigs to apply to samples before ingestion.
+  metricRelabelings: []
+  # -- Specify honorLabels parameter to add the scrape endpoint
+  honorLabels: false
+  # -- Additional labels that can be used so ServiceMonitor resource(s) can be discovered by Prometheus
+  additionalLabels: {}
+  # -- Labels from the Kubernetes pod to be transferred to the created metrics
+  podTargetLabels: []
+
+# -- Optionally specify extra list of additional volumes for the Redis&reg; master pod(s)
+extraVolumes: []
+# -- Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s)
+extraVolumeMounts: []
