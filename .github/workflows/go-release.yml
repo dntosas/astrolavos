@@ -1,12 +1,11 @@
----
-name: "Release"
+name: Release
 on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
 jobs:
   build:
-    name: Create Release
+    name: Go and Docker
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
@@ -34,18 +33,6 @@ jobs:
         with:
           tag_regex: "v[0-9]+.[0-9]+.[0-9]+"
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1.1.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          body: ${{ steps.git_log.outputs.release_body }}
-          draft: false
-          prerelease: false
-
       - name: Docker Metadata
         id: meta
         uses: docker/metadata-action@v4
@@ -72,6 +59,18 @@ jobs:
             ${{ steps.meta.outputs.tags }}
           pull: true
           push: true
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.1.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: ${{ steps.git_log.outputs.release_body }}
+          draft: false
+          prerelease: false
 
       - name: Upload Release Asset Linux
         id: upload-release-asset-linux
