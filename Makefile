@@ -1,5 +1,5 @@
 COMMIT = $(shell git log --pretty=format:'%h' -n 1)
-VERSION= $(shell git describe --abbrev=0 --exact-match || echo development)
+VERSION = $(shell git describe --abbrev=0 --exact-match || echo development)
 PROJECT = "astrolavos"
 USER = $(shell id -u)
 GROUP = $(shell id -g)
@@ -39,6 +39,10 @@ envtest: ## Run go tests against code.
 
 .PHONY: ci
 ci: fmt vet lint test ## Run go fmt/vet/lint/tests against the code.
+
+.PHONY: e2e
+e2e:
+	cd tests && go mod vendor && go test -mod=vendor -v .
 
 .PHONY: modsync
 modsync: ## Run go mod tidy && vendor.

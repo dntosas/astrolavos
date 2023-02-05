@@ -11,3 +11,6 @@
 *.swp
 *.swo
 ~
+
+# e2e tests vendor files
+tests/vendor
