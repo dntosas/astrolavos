@@ -1,8 +1,8 @@
-name: Release
+name: Helm Release
 on:
   push:
-    tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+    branches:
+      - main
 jobs:
   release:
     name: Helm Chart
