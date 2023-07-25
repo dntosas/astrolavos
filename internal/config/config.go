@@ -55,8 +55,8 @@ type YamlEndpoint struct {
 	Tag                 string         `yaml:"tag"`
 	Retries             *int           `yaml:"retries"`
 	Prober              string         `yaml:"prober"`
-	ReuseConnection     bool           `yaml:"reuse_connection"`
-	SkipTLSVerification bool           `yaml:"skip_tls_verify"`
+	ReuseConnection     bool           `yaml:"reuseConnection"`
+	SkipTLSVerification bool           `yaml:"skipTLSVerification"`
 }
 
 // getCleanEndpoint holds the logic of checking and creating an endpoint
@@ -171,6 +171,6 @@ func getYamlConfig() (*YamlEndpoints, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to decode config yaml into struct")
 	}
-
+	
 	return &ye, nil
 }

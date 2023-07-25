@@ -3,3 +3,11 @@ endpoints:
   - domain: "www.httpbin.org"
     interval: 5s
     https: true
+    retries: 5
+    prober: httpTrace
+  - domain: "self-signed.badssl.com"
+    interval: 5s
+    tag: internal-self-signed
+    retries: 5
+    skipTLSVerification: true
+    https: true
