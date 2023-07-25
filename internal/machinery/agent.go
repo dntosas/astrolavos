@@ -24,7 +24,7 @@ func newAgent(endpoints []*Endpoint, isOneOff bool, promC *metrics.PrometheusCli
 	probersList := []probers.Prober{}
 
 	for _, e := range endpoints {
-		p := probers.NewProberConfig(&wg, e.URI, e.Retries, e.Tag, e.Interval, isOneOff, e.ReuseConnection, promC)
+		p := probers.NewProberConfig(&wg, e.URI, e.Retries, e.Tag, e.Interval, isOneOff, e.ReuseConnection, e.SkipTLSVerification, promC)
 		switch e.ProberType {
 		case "tcp":
 			o = probers.NewTCP(p)

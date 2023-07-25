@@ -18,12 +18,13 @@ import (
 
 // Endpoint encapsulates information needed to run probes against a destination.
 type Endpoint struct {
-	URI             string
-	Interval        time.Duration
-	Tag             string
-	Retries         int
-	ProberType      string
-	ReuseConnection bool
+	URI                 string
+	Interval            time.Duration
+	Tag                 string
+	Retries             int
+	ProberType          string
+	ReuseConnection     bool
+	SkipTLSVerification bool
 }
 
 // Astrolavos encapsulates information needed for our

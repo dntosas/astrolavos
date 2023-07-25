@@ -5,7 +5,7 @@ USER = $(shell id -u)
 GROUP = $(shell id -g)
 GOBUILD_OPTS = -ldflags="-s -w -X main.Version=${VERSION} -X main.CommitHash=${COMMIT}"
 GO_IMAGE = "golang:1.20-alpine"
-GO_IMAGE_CI = "golangci/golangci-lint:v1.51.1"
+GO_IMAGE_CI = "golangci/golangci-lint:v1.53.3"
 DISTROLESS_IMAGE = "gcr.io/distroless/static:nonroot"
 IMAGE_TAG_BASE ?= "ghcr.io/dntosas/${PROJECT}"
 
@@ -35,7 +35,7 @@ test:
 
 .PHONY: envtest
 envtest: ## Run go tests against code.
-		KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v -mod=vendor `go list ./...` -coverprofile cover.out
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v -mod=vendor `go list ./...` -coverprofile cover.out
 
 .PHONY: ci
 ci: fmt vet lint test ## Run go fmt/vet/lint/tests against the code.
