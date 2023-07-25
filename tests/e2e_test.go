@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -28,14 +29,22 @@ func TestE2EAstrolavos(t *testing.T) {
 	// `helm delete RELEASE_NAME` to clean up any resources that were created.
 	releaseName := fmt.Sprintf("astrolavos-%s", strings.ToLower(random.UniqueId()))
 
+	// Get image tag from environment variable
+	imageTag := os.Getenv("IMAGE_TAG")
+
+	// If the environment variable is empty, set a default value
+	if imageTag == "" {
+		imageTag = "v0.1.0"
+	}
+
 	// Setup the chart options. For this test, we will set the following input values:
 	options := &helm.Options{
 		SetValues: map[string]string{
-			"fullnameOverride": releaseName,
-			"image.tag":           "v0.1.0",
-			"autoscaling.enabled": "false",
+			"fullnameOverride":       releaseName,
+			"image.tag":              imageTag,
+			"autoscaling.enabled":    "false",
 			"serviceMonitor.enabled": "false",
-			"config.endpoints": "- domain: kubernetes\n  interval: 1s\n  https: true",
+			"config.endpoints":       "- domain: kubernetes\n  interval: 1s\n  https: true",
 		},
 		ExtraArgs: map[string][]string{
 			"install": {"--install"},
