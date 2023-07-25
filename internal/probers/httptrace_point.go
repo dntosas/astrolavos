@@ -122,7 +122,11 @@ func (t *tracePoint) totalDoneHandler() {
 }
 
 func (h *HTTPTrace) getClient() *http.Client {
-	return h.client
+	if h.reuseConnection {
+		return h.client
+	}
+
+	return getCustomClient(h.reuseConnection, h.skipTLS)
 }
 
 func (h *HTTPTrace) trace() (*tracePoint, error) {

@@ -52,18 +52,23 @@ func NewProberConfig(w *sync.WaitGroup, endpoint string, retries int, tag string
 		isOneOff: isOneOff,
 	}
 
+	p.HTTPProberConfig = HTTPProberConfig{
+		reuseConnection: reuseCon,
+		skipTLS:         skipTLS,
+		client:          getCustomClient(reuseCon, skipTLS),
+	}
+
+	return p
+}
+
+func getCustomClient(reuseCon, skipTLS bool) *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if skipTLS {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	if !reuseCon {
+		// with below option we force new connection every time we do a request
 		transport.MaxIdleConnsPerHost = -1
 	}
-	p.HTTPProberConfig = HTTPProberConfig{
-		reuseConnection: reuseCon,
-		skipTLS:         skipTLS,
-		client:          &http.Client{Transport: transport},
-	}
-
-	return p
+	return &http.Client{Transport: transport}
 }
