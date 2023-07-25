@@ -122,14 +122,7 @@ func (t *tracePoint) totalDoneHandler() {
 }
 
 func (h *HTTPTrace) getClient() *http.Client {
-	if h.reuseConnection {
-		return h.client
-	}
-
-	// with below option we force new connection every time we do a request
-	p := http.DefaultTransport.(*http.Transport).Clone()
-	p.MaxIdleConnsPerHost = -1
-	return &http.Client{Transport: p}
+	return h.client
 }
 
 func (h *HTTPTrace) trace() (*tracePoint, error) {

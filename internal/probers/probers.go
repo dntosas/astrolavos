@@ -2,6 +2,7 @@
 package probers
 
 import (
+	"crypto/tls"
 	"net/http"
 	"sync"
 	"time"
@@ -34,11 +35,12 @@ type ProberConfig struct {
 // HTTPProberConfig holds information abou the HTTP traces
 type HTTPProberConfig struct {
 	reuseConnection bool
+	skipTLS         bool
 	client          *http.Client
 }
 
 // NewProberConfig is the constructor function for each ProberConfig struct
-func NewProberConfig(w *sync.WaitGroup, endpoint string, retries int, tag string, interval time.Duration, isOneOff, reuseCon bool, promC *metrics.PrometheusClient) ProberConfig {
+func NewProberConfig(w *sync.WaitGroup, endpoint string, retries int, tag string, interval time.Duration, isOneOff, reuseCon bool, skipTLS bool, promC *metrics.PrometheusClient) ProberConfig {
 	p := ProberConfig{
 		wg:       w,
 		promC:    promC,
@@ -49,11 +51,19 @@ func NewProberConfig(w *sync.WaitGroup, endpoint string, retries int, tag string
 		interval: interval,
 		isOneOff: isOneOff,
 	}
-	if reuseCon {
-		p.HTTPProberConfig = HTTPProberConfig{
-			reuseConnection: reuseCon,
-			client:          &http.Client{Transport: http.DefaultTransport.(*http.Transport)},
-		}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if skipTLS {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
+	if !reuseCon {
+		transport.MaxIdleConnsPerHost = -1
+	}
+	p.HTTPProberConfig = HTTPProberConfig{
+		reuseConnection: reuseCon,
+		skipTLS:         skipTLS,
+		client:          &http.Client{Transport: transport},
+	}
+
 	return p
 }

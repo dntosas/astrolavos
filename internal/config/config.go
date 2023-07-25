@@ -49,13 +49,14 @@ func (r *YamlEndpoints) getCleanEndpoints() ([]*machinery.Endpoint, error) {
 // YamlEndpoint encapsulates yaml objects that represent
 // endpoints that we want to monitor.
 type YamlEndpoint struct {
-	Domain          string         `yaml:"domain"`
-	Interval        *time.Duration `yaml:"interval"`
-	HTTPS           bool           `yaml:"https"`
-	Tag             string         `yaml:"tag"`
-	Retries         *int           `yaml:"retries"`
-	Prober          string         `yaml:"prober"`
-	ReuseConnection bool           `yaml:"reuse_connection"`
+	Domain              string         `yaml:"domain"`
+	Interval            *time.Duration `yaml:"interval"`
+	HTTPS               bool           `yaml:"https"`
+	Tag                 string         `yaml:"tag"`
+	Retries             *int           `yaml:"retries"`
+	Prober              string         `yaml:"prober"`
+	ReuseConnection     bool           `yaml:"reuse_connection"`
+	SkipTLSVerification bool           `yaml:"skip_tls_verify"`
 }
 
 // getCleanEndpoint holds the logic of checking and creating an endpoint
@@ -95,7 +96,7 @@ func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 	}
 
 	ep := &machinery.Endpoint{URI: uri, Interval: *r.Interval, Tag: r.Tag, Retries: defaultRetries, ProberType: r.Prober,
-		ReuseConnection: r.ReuseConnection,
+		ReuseConnection: r.ReuseConnection, SkipTLSVerification: r.SkipTLSVerification,
 	}
 	return ep, nil
 }
