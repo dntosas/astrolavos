@@ -1,6 +1,6 @@
 # astrolavos
 
-![Version: 0.1.1](https://img.shields.io/badge/Version-0.1.1-informational?style=flat-square)
+![Version: 0.1.2](https://img.shields.io/badge/Version-0.1.2-informational?style=flat-square)
 
 A Helm Chart for deploying Astrolavos Latency Measuring Tool
 
@@ -41,7 +41,12 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | config.endpoints[0].https | bool | `true` |  |
 | config.endpoints[0].interval | string | `"10s"` |  |
 | containerPorts.http | int | `3000` |  |
-| containerSecurityContext | object | `{}` |  |
+| containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
+| containerSecurityContext.enabled | bool | `true` |  |
+| containerSecurityContext.readOnlyRootFilesystem | bool | `true` |  |
+| containerSecurityContext.runAsGroup | int | `65532` |  |
+| containerSecurityContext.runAsNonRoot | bool | `true` |  |
+| containerSecurityContext.runAsUser | int | `65532` |  |
 | extraArgs | object | `{}` |  |
 | extraEnvVars.ASTROLAVOS_LOG_LEVEL | string | `"INFO"` |  |
 | extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s) |
@@ -49,26 +54,48 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | fullnameOverride | string | `"astrolavos"` |  |
 | global.imagePullSecrets | list | `[]` |  |
 | global.imageRegistry | string | `""` |  |
+| hostNetwork | bool | `false` |  |
 | image.pullPolicy | string | `"Always"` |  |
 | image.pullSecrets | object | `{}` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"dntosas/astrolavos"` |  |
 | image.tag | string | `"v0.1.0"` |  |
-| initContainers | string | `nil` |  |
+| ingress.annotations | object | `{}` |  |
+| ingress.apiVersion | string | `""` |  |
+| ingress.enabled | bool | `false` |  |
+| ingress.extraHosts | list | `[]` |  |
+| ingress.extraPaths | list | `[]` |  |
+| ingress.extraRules | list | `[]` |  |
+| ingress.extraTls | list | `[]` |  |
+| ingress.hostname | string | `"Astrolavos.local"` |  |
+| ingress.ingressClassName | string | `""` |  |
+| ingress.path | string | `"/"` |  |
+| ingress.pathType | string | `"ImplementationSpecific"` |  |
+| ingress.secrets | list | `[]` |  |
+| ingress.selfSigned | bool | `false` |  |
+| ingress.tls | bool | `false` |  |
+| initContainers | list | `[]` |  |
 | livenessProbe.enabled | bool | `true` |  |
 | livenessProbe.failureThreshold | int | `3` |  |
 | livenessProbe.initialDelaySeconds | int | `1` |  |
 | livenessProbe.periodSeconds | int | `10` |  |
 | livenessProbe.successThreshold | int | `1` |  |
 | livenessProbe.timeoutSeconds | int | `5` |  |
+| minReadySeconds | int | `0` |  |
 | nameOverride | string | `""` |  |
+| nodeAffinityPreset.key | string | `""` |  |
+| nodeAffinityPreset.type | string | `""` |  |
+| nodeAffinityPreset.values | list | `[]` |  |
 | nodeSelector | object | `{}` |  |
+| pdb.create | bool | `false` |  |
+| pdb.maxUnavailable | int | `0` |  |
+| pdb.minAvailable | int | `1` |  |
+| podAffinityPreset | string | `""` |  |
 | podAnnotations | object | `{}` |  |
-| podDisruptionBudget.enabled | bool | `false` |  |
+| podAntiAffinityPreset | string | `"soft"` |  |
 | podLabels | object | `{}` |  |
 | podSecurityContext.enabled | bool | `true` |  |
 | podSecurityContext.fsGroup | int | `1001` |  |
-| podSecurityContext.runAsUser | int | `1001` |  |
 | priorityClassName | string | `""` |  |
 | readinessProbe.enabled | bool | `true` |  |
 | readinessProbe.failureThreshold | int | `3` |  |
@@ -81,6 +108,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | resources.limits.memory | string | `"256Mi"` |  |
 | resources.requests.cpu | string | `"50m"` |  |
 | resources.requests.memory | string | `"64Mi"` |  |
+| revisionHistoryLimit | int | `3` |  |
 | schedulerName | string | `""` |  |
 | service.annotations | object | `{}` |  |
 | service.enabled | bool | `true` |  |
@@ -94,7 +122,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | service.sessionAffinityConfig | object | `{}` |  |
 | service.type | string | `"ClusterIP"` |  |
 | serviceAccount.annotations | object | `{}` |  |
-| serviceAccount.automountServiceAccountToken | bool | `true` |  |
+| serviceAccount.automountServiceAccountToken | bool | `false` |  |
 | serviceAccount.create | bool | `true` |  |
 | serviceAccount.name | string | `""` |  |
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels that can be used so ServiceMonitor resource(s) can be discovered by Prometheus |
@@ -106,9 +134,11 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | serviceMonitor.podTargetLabels | list | `[]` | Labels from the Kubernetes pod to be transferred to the created metrics |
 | serviceMonitor.relabellings | list | `[]` | Metrics RelabelConfigs to apply to samples before scraping. |
 | serviceMonitor.scrapeTimeout | string | `""` | The timeout after which the scrape is ended |
+| terminationGracePeriodSeconds | string | `""` |  |
 | tolerations | list | `[]` |  |
 | topologySpreadConstraints | list | `[]` |  |
-| updateStrategy | object | `{}` |  |
+| updateStrategy.rollingUpdate.maxUnavailable | int | `1` |  |
+| updateStrategy.type | string | `"RollingUpdate"` |  |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.11.0](https://github.com/norwoodj/helm-docs/releases/v1.11.0)
