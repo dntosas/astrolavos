@@ -50,7 +50,7 @@ modsync: ## Run go mod tidy && vendor.
 
 .PHONY: helm-docs
 helm-docs:
-	docker run --rm --volume "${PWD}/charts/astrolavos:/helm-docs" -u ${USER} "jnorwood/helm-docs:v1.11.0"
+	docker run --rm --volume "${PWD}/deploy/kubernetes:/helm-docs" -u ${USER} "jnorwood/helm-docs:v1.11.0"
 
 ##@ Build
 
