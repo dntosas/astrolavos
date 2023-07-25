@@ -34,7 +34,7 @@ func TestE2EAstrolavos(t *testing.T) {
 
 	// If the environment variable is empty, set a default value
 	if imageTag == "" {
-		imageTag = "v0.1.0"
+		imageTag = "v0.2.0"
 	}
 
 	// Setup the chart options. For this test, we will set the following input values:
