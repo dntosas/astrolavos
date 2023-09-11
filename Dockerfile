@@ -4,6 +4,6 @@ FROM alpine as builder
 FROM "gcr.io/distroless/static:nonroot"
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 WORKDIR /
-COPY bin/astrolavos .
+COPY astrolavos .
 USER 65532:65532
 ENTRYPOINT ["./astrolavos"]
