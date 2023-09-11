@@ -171,6 +171,6 @@ func getYamlConfig() (*YamlEndpoints, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to decode config yaml into struct")
 	}
-	
+
 	return &ye, nil
 }

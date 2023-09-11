@@ -69,7 +69,7 @@ func (t *tracePoint) connStartHandler(_, _ string) {
 	t.connStartTime = time.Now()
 }
 
-func (t *tracePoint) connDoneHandler(net, addr string, err error) {
+func (t *tracePoint) connDoneHandler(_, _ string, err error) {
 	if err != nil {
 		t.err = errors.Wrap(err, "Error occurred while tracing on TCP connection part")
 		return

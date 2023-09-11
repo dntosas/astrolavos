@@ -88,7 +88,7 @@ type PrometheusClient struct {
 
 // NewPrometheusClient initializes a new prometheus clinets
 // that we can use to deal with our metrics
-func NewPrometheusClient(isOneOff bool, promPushGateway string) *PrometheusClient {
+func NewPrometheusClient(_ bool, promPushGateway string) *PrometheusClient {
 	prometheus.MustRegister(dnsLatencyHistogram)
 	prometheus.MustRegister(connLatencyHistogram)
 	prometheus.MustRegister(tlsLatencyHistogram)
