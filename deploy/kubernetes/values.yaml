@@ -64,7 +64,7 @@ config:
 image:
   registry: ghcr.io
   repository: dntosas/astrolavos
-  tag: v0.2.0
+  tag: v0.3.0
   pullPolicy: Always
   pullSecrets: {}
 
@@ -203,6 +203,8 @@ containerSecurityContext:
   capabilities:
     drop: ["ALL"]
   readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
 
 # Prometheus Service Monitor
 serviceMonitor:
