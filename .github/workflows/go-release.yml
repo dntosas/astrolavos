@@ -35,11 +35,11 @@
           with:
             cosign-release: 'v2.0.0'
 
-        - name: Write Cosign signing key to disk
-          run: 'echo "$KEY" > cosign.key'
-          shell: bash
-          env:
-            KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+        # - name: Write Cosign signing key to disk
+        #   run: 'echo "$KEY" > cosign.key'
+        #   shell: bash
+        #   env:
+        #     KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
         - name: Run GoReleaser
           uses: goreleaser/goreleaser-action@v4
@@ -47,7 +47,7 @@
             args: release --clean --config .github/config/goreleaser.yaml
           env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            COSIGN_PASSWORD: ${{ secrets.COSIGN_PRIVATE_KEY }}
+            # COSIGN_PASSWORD: ${{ secrets.COSIGN_PRIVATE_KEY }}
 
         # - name: Sign container image with annotations from our environment
         #   run: |
