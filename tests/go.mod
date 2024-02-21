@@ -1,6 +1,6 @@
 module github.com/dntosas/astrolavos/tests
 
-go 1.20
+go 1.22
 
 require (
 	github.com/gruntwork-io/terratest v0.43.9
