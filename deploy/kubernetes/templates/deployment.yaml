@@ -1,5 +1,9 @@
 apiVersion: {{ include "common.capabilities.deployment.apiVersion" . }}
+{{- if .Values.deployAsDaemonSet }}
+kind: DaemonSet
+{{- else }}
 kind: Deployment
+{{- end }}
 metadata:
   name: {{ include "common.names.fullname" . }}
   namespace: {{ include "common.names.namespace" . | quote }}
@@ -17,8 +21,12 @@ spec:
   selector:
     matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
-  {{- if .Values.updateStrategy }}
+  {{- if and .Values.updateStrategy (not .Values.deployAsDaemonSet) }}
   strategy: {{- include "common.tplvalues.render" (dict "value" .Values.updateStrategy "context" $) | nindent 4 }}
+  {{- end }}
+  {{- if and .Values.updateStrategy (.Values.deployAsDaemonSet) }}
+  updateStrategy:
+    {{- include "common.tplvalues.render" (dict "value" .Values.updateStrategy "context" $) | nindent 4 }}
   {{- end }}
   template:
     metadata:

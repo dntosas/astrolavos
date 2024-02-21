@@ -9,6 +9,12 @@ commonAnnotations: {}
 podAnnotations: {}
 podLabels: {}
 
+## There are scenarios where operators will need to deploy Astrolavos
+## pods on every node to increase chances of getting more accurate
+## cluster-wide insights. Following option switches deployment type
+## to be DaemonSet and support this.
+deployAsDaemonSet: true
+
 ## @param revisionHistoryLimit The number of old history to retain to allow rollback
 ##
 revisionHistoryLimit: 3
@@ -64,7 +70,7 @@ config:
 image:
   registry: ghcr.io
   repository: dntosas/astrolavos
-  tag: v0.3.0
+  tag: v0.4.0
   pullPolicy: Always
   pullSecrets: {}
 
