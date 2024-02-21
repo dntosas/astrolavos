@@ -12,7 +12,7 @@ maintainers:
 name: astrolavos
 sources:
 - https://github.com/dntosas/astrolavos
-version: 0.4.1
+version: 0.4.2
 dependencies:
 - name: common
   repository: "https://charts.bitnami.com/bitnami"

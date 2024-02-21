@@ -8,8 +8,6 @@ jobs:
   build:
     name: Create Release
     runs-on: ubuntu-latest
-    outputs:
-      version_tag: ${{ steps.version_tag.outputs }}
     steps:
       - name: Set up Go
         uses: actions/setup-go@v4.1.0
@@ -31,11 +29,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
           logout: false
-
-      - name: Extract Version Tag
-        id: version_tag
-        run: echo "::set-output name=VERSION::${GITHUB_REF#refs/tags}"
-        shell: bash
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@v3.3.0
@@ -67,9 +60,9 @@ jobs:
       #     COSIGN_PASSWORD: ""
 
   post:
-    name: Build Django Base Image
+    name: Run E2E Tests
     needs:
       - build
     uses: ./.github/workflows/e2e.yml
     with:
-      version: ${{ needs.build.outputs.version_tag }}
+      version: ${{ github.ref_name }}
