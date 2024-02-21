@@ -34,8 +34,10 @@ func TestE2EAstrolavos(t *testing.T) {
 
 	// If the environment variable is empty, set a default value
 	if imageTag == "" {
-		imageTag = "v0.3.0"
+		imageTag = "v0.4.0"
 	}
+
+	fmt.Printf("Will test Astrolavos on version: %s\n", imageTag)
 
 	// Setup the chart options. For this test, we will set the following input values:
 	options := &helm.Options{

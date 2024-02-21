@@ -42,7 +42,7 @@ ci: fmt vet lint test ## Run go fmt/vet/lint/tests against the code.
 
 .PHONY: e2e
 e2e:
-	cd tests && go mod vendor && go test -mod=vendor -v .
+	cd tests && go mod vendor && IMAGE_TAG=$(ASTROLAVOS_VERSION) go test -mod=vendor -v .
 
 .PHONY: modsync
 modsync: ## Run go mod tidy && vendor.
