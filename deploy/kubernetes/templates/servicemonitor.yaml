@@ -1,4 +1,5 @@
 {{- if .Values.serviceMonitor.enabled }}
+{{- if .Capabilities.APIVersions.Has "monitoring.coreos.com" }}
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -40,4 +41,5 @@ spec:
       - {{ include "common.names.namespace" . | quote }}
   selector:
     matchLabels: {{- include "common.labels.matchLabels" . | nindent 6 }}
+{{- end }}
 {{- end }}

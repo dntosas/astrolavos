@@ -1,4 +1,4 @@
-{{- if .Values.autoscaling.enabled }}
+{{- if and (not .Values.deployAsDaemonSet) .Values.autoscaling.enabled }}
 apiVersion: {{ include "common.capabilities.hpa.apiVersion" ( dict "context" $ ) }}
 kind: HorizontalPodAutoscaler
 metadata:
