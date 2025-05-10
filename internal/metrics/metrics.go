@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	// TimeBuckets is based on Prometheus client_golang prometheus.DefBuckets
+	// TimeBuckets is based on Prometheus client_golang prometheus.DefBuckets.
 	timeBuckets = prometheus.ExponentialBuckets(0.00025, 2, 16) // from 0.25ms to 8 seconds
 
 	dnsLatencyHistogram = prometheus.NewHistogramVec(
@@ -81,13 +81,13 @@ var (
 )
 
 // PrometheusClient struct holds information that will be needed
-// during the program's lifecycle regarding prometheus communication
+// during the program's lifecycle regarding prometheus communication.
 type PrometheusClient struct {
 	pusher *push.Pusher
 }
 
 // NewPrometheusClient initializes a new prometheus clinets
-// that we can use to deal with our metrics
+// that we can use to deal with our metrics.
 func NewPrometheusClient(_ bool, promPushGateway string) *PrometheusClient {
 	prometheus.MustRegister(dnsLatencyHistogram)
 	prometheus.MustRegister(connLatencyHistogram)
@@ -113,58 +113,59 @@ func NewPrometheusClient(_ bool, promPushGateway string) *PrometheusClient {
 	return &PrometheusClient{pusher: pusher}
 }
 
-// UpdateDNSHistogram appends metrics values into corresponding Histogram
+// UpdateDNSHistogram appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateDNSHistogram(endpoint, proberType string, tag string, duration float64) {
 	dnsLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for DNS part")
 }
 
-// UpdateConnHistogram appends metrics values into corresponding Histogram
+// UpdateConnHistogram appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateConnHistogram(endpoint, proberType string, tag string, duration float64) {
 	connLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for Connection part")
 }
 
-// UpdateTLSHistogram appends metrics values into corresponding Histogram
+// UpdateTLSHistogram appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateTLSHistogram(endpoint, proberType string, tag string, duration float64) {
 	tlsLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for TLS part")
 }
 
-// UpdateGotConnHistogram appends metrics values into corresponding Histogram
+// UpdateGotConnHistogram appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateGotConnHistogram(endpoint, proberType string, tag string, duration float64) {
 	gotConnLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for GotConnection part")
 }
 
-// UpdateFirstByteHistogram appends metrics values into corresponding Histogram
+// UpdateFirstByteHistogram appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateFirstByteHistogram(endpoint, proberType string, tag string, duration float64) {
 	firstByteLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for FirstByte part")
 }
 
-// UpdateTotalHistogram appends metrics values into corresponding Histogram
+// UpdateTotalHistogram appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateTotalHistogram(endpoint, proberType string, tag string, duration float64) {
 	totalLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
 	log.Debug("Update metric for Total part")
 }
 
-// UpdateRequestsCounter appends metrics values into corresponding Histogram
+// UpdateRequestsCounter appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateRequestsCounter(endpoint, proberType string, tag, statusCode string) {
 	totalRequestsCounter.WithLabelValues(endpoint, tag, statusCode, proberType).Inc()
 	log.Debug("Update metric for Total requests counter")
 }
 
-// UpdateErrorsCounter appends metrics values into corresponding Histogram
+// UpdateErrorsCounter appends metrics values into corresponding Histogram.
 func (p *PrometheusClient) UpdateErrorsCounter(endpoint, proberType string, tag, errorMsg string) {
 	totalErrorsCounter.WithLabelValues(endpoint, tag, errorMsg, proberType).Inc()
 	log.Debug("Update metric for Total errors counter")
 }
 
 // PrometheusPush sends the collected prometheus stats to
-// the prometheus push gateway
+// the prometheus push gateway.
 func (p *PrometheusClient) PrometheusPush() {
 	log.Debugf("Pushing metrics to pushgateway")
+
 	err := p.pusher.Push()
 	if err != nil {
 		log.Error(err)

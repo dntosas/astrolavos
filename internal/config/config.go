@@ -3,7 +3,6 @@
 package config
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -29,16 +28,20 @@ func (r *YamlEndpoints) getCleanEndpoints() ([]*machinery.Endpoint, error) {
 	if len(r.Endpoints) == 0 {
 		return []*machinery.Endpoint{}, errors.Errorf("Yaml configuration seems empty or malformed, cannot proceed with no valid endpoints")
 	}
+
 	cleanEndpoints := []*machinery.Endpoint{}
+
 	for _, req := range r.Endpoints {
 		c, err := req.getCleanEndpoint()
 		if err != nil {
 			log.Error(err.Error())
+
 			continue
 		}
-		cleanEndpoints = append(cleanEndpoints, c)
 
+		cleanEndpoints = append(cleanEndpoints, c)
 	}
+
 	if len(cleanEndpoints) == 0 {
 		return []*machinery.Endpoint{}, errors.Errorf("No valid endpoints found inside the endpoint sections coming from yaml config")
 	}
@@ -64,6 +67,7 @@ type YamlEndpoint struct {
 // can be used further in our code.
 func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 	var defaultRetries = 3
+
 	var defaultInterval = 5000 * time.Millisecond
 
 	if r.Interval == nil {
@@ -83,11 +87,12 @@ func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 	}
 
 	uri := r.Domain
+
 	if r.Prober == "httpTrace" {
 		if r.HTTPS {
-			uri = fmt.Sprintf("https://%s", r.Domain)
+			uri = "https://" + r.Domain
 		} else {
-			uri = fmt.Sprintf("http://%s", r.Domain)
+			uri = "http://" + r.Domain
 		}
 	}
 
@@ -98,10 +103,11 @@ func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 	ep := &machinery.Endpoint{URI: uri, Interval: *r.Interval, Tag: r.Tag, Retries: defaultRetries, ProberType: r.Prober,
 		ReuseConnection: r.ReuseConnection, SkipTLSVerification: r.SkipTLSVerification,
 	}
+
 	return ep, nil
 }
 
-// Config holds all our configuration coming from user that our app needs
+// Config holds all our configuration coming from user that our app needs.
 type Config struct {
 	AppPort         int
 	LogLevel        string
@@ -110,20 +116,22 @@ type Config struct {
 }
 
 // NewConfig constructs and returns the struct that will host
-// all our configuration variables
+// all our configuration variables.
 func NewConfig(path string) (*Config, error) {
-
 	initViper(path)
+
 	r, err := getYamlConfig()
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't get a yaml config")
 	}
+
 	cleanEndpoints, err := r.getCleanEndpoints()
 	if err != nil {
 		return nil, errors.Wrap(err, "Couldn't get a valid yaml config")
 	}
 
 	port := viper.GetString("app_port")
+
 	intPort, ok := strconv.Atoi(port)
 	if ok != nil {
 		return nil, errors.New("Couldn't get a valid integer for the ASTROLAVOS_PORT configuration variable")
@@ -160,7 +168,6 @@ func initViper(path string) {
 // the function returns an YamlEndpoints struct that contains all info from
 // the file.
 func getYamlConfig() (*YamlEndpoints, error) {
-
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, errors.Wrap(err, "Error reading config file")
 	}

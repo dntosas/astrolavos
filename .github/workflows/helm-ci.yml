@@ -17,7 +17,7 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.1
+          version: v3.17.3
 
       - name: Build Helm Dependencies
         working-directory: './deploy/kubernetes'
