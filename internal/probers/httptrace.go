@@ -8,49 +8,60 @@ import (
 )
 
 // HTTPTrace struct holds information for httpTrace probes and
-// implements Prober interface
+// implements Prober interface.
 type HTTPTrace struct {
 	ProberConfig
 }
 
-// NewHTTPTrace is the constructor function of httptrace struct
+// NewHTTPTrace is the constructor function of httptrace struct.
 func NewHTTPTrace(c ProberConfig) *HTTPTrace {
 	return &HTTPTrace{c}
 }
 
-// String is used when we want to print info about httpTrace prober
+// String is used when we want to print info about httpTrace prober.
 func (h *HTTPTrace) String() string {
 	return fmt.Sprintf("httpTrace Prober Endpoint: %s - Interval: %v - Tag: %s - Retries: %d", h.endpoint, h.interval, h.tag, h.retries)
 }
 
 // Run is responsible for holding the logic or running the probing httpTrace
-// measurements for an endpoint
+// measurements for an endpoint.
 func (h *HTTPTrace) Run() {
 	defer h.wg.Done()
+
 	if h.isOneOff {
 		h.runOneOff()
 	} else {
 		h.runInterval()
 	}
+}
 
+// Stop sends a message to httpTrace's exit channel when it's time to stop.
+func (h *HTTPTrace) Stop() {
+	log.Debugf("Prober: %s will stop now", h)
+	h.exit <- true
 }
 
 // runOneOff runs httpTrace probing measurement once with
-// a number of retries and then exits
+// a number of retries and then exits.
 func (h *HTTPTrace) runOneOff() {
 	var isSuccess bool
+
 	var err error
+
 	var t *tracePoint
 
 	log.Infof("Starting (OneOff) %s", h)
+
 	loop := true
 	for i := 0; i < h.retries && loop; i++ {
 		select {
 		case <-h.exit:
 			log.Infof("HTTPTrace (OneOff): %s got message in exit channel, exiting", h)
+
 			return
 		default:
 			log.Debugf("HTTPTrace (OneOff) for %s starts new trace probe", h)
+
 			t, err = h.trace()
 			if err == nil {
 				isSuccess = true
@@ -60,6 +71,7 @@ func (h *HTTPTrace) runOneOff() {
 	}
 
 	h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
+
 	if !isSuccess {
 		log.Errorf("HTTPTrace (OneOff) of %s error: %v", h, err)
 		h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
@@ -72,23 +84,25 @@ func (h *HTTPTrace) runOneOff() {
 		h.promC.UpdateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
 		h.promC.UpdateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
 	}
-
 }
 
 // runInterval starts a loop with a ticker that run the tracing
-// probing measurements in the workers interval
+// probing measurements in the workers interval.
 func (h *HTTPTrace) runInterval() {
 	ticker := time.NewTicker(h.interval)
 	log.Infof("Starting %s", h)
+
 	for {
 		select {
 		case <-h.exit:
 			log.Infof("HTTPTrace: %s got message in exit channel, exiting", h)
+
 			return
 		case <-ticker.C:
 			log.Debugf("HTTPTrace for %s starts new trace probe", h)
 			t, err := h.trace()
 			h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
+
 			if err != nil {
 				log.Errorf("HTTPTrace of %s error: %v", h, err)
 				h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
@@ -103,11 +117,5 @@ func (h *HTTPTrace) runInterval() {
 			}
 		}
 	}
-
 }
 
-// Stop sends a message to httpTrace's exit channel when it's time to stop
-func (h *HTTPTrace) Stop() {
-	log.Debugf("Prober: %s will stop now", h)
-	h.exit <- true
-}

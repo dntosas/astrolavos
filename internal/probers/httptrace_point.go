@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Desc
+// Desc.
 type tracePoint struct {
 	dnsStartTime time.Time
 	dnsDoneTime  time.Time
@@ -56,8 +56,10 @@ func (t *tracePoint) dnsStartHandler(_ httptrace.DNSStartInfo) {
 func (t *tracePoint) dnsDoneHandler(d httptrace.DNSDoneInfo) {
 	if d.Err != nil {
 		t.err = errors.Wrap(d.Err, "Error occurred while tracing on DNS part")
+
 		return
 	}
+
 	t.dnsDoneTime = time.Now()
 }
 
@@ -72,8 +74,10 @@ func (t *tracePoint) connStartHandler(_, _ string) {
 func (t *tracePoint) connDoneHandler(_, _ string, err error) {
 	if err != nil {
 		t.err = errors.Wrap(err, "Error occurred while tracing on TCP connection part")
+
 		return
 	}
+
 	t.connDoneTime = time.Now()
 }
 
@@ -87,9 +91,11 @@ func (t *tracePoint) tlsStartHandler() {
 
 func (t *tracePoint) tlsDoneHandler(_ tls.ConnectionState, err error) {
 	if err != nil {
-		t.err = errors.Wrap(err, "Error occured while tracing on TLS part")
+		t.err = errors.Wrap(err, "Error occurred while tracing on TLS part")
+
 		return
 	}
+
 	t.tlsDoneTime = time.Now()
 }
 
@@ -133,7 +139,7 @@ func (h *HTTPTrace) trace() (*tracePoint, error) {
 	t := newTracePoint()
 
 	// TODO: make sure our endpoint is valid http/https uri
-	req, err := http.NewRequest("GET", h.endpoint, nil)
+	req, err := http.NewRequest(http.MethodGet, h.endpoint, nil)
 	if err != nil {
 		return t, errors.Wrap(err, "Creation of new request failed")
 	}
@@ -153,6 +159,7 @@ func (h *HTTPTrace) trace() (*tracePoint, error) {
 	}
 
 	req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+
 	resp, err := h.getClient().Do(req)
 	if err != nil {
 		return t, errors.Wrap(err, "Request failed")
@@ -163,6 +170,7 @@ func (h *HTTPTrace) trace() (*tracePoint, error) {
 	if err != nil {
 		return t, errors.Wrap(err, "Reading request body failed")
 	}
+
 	err = resp.Body.Close()
 	if err != nil {
 		return t, errors.Wrap(err, "Closing request body failed")
@@ -171,6 +179,7 @@ func (h *HTTPTrace) trace() (*tracePoint, error) {
 	t.statusCode = strconv.Itoa(resp.StatusCode)
 
 	t.totalDoneHandler()
+
 	if t.err != nil {
 		return t, errors.Wrap(t.err, "trace function failed")
 	}

@@ -32,7 +32,7 @@ jobs:
         uses: golangci/golangci-lint-action@v8
         with:
           version: v2.1.6
-          args: --timeout 5m --enable revive,gofmt,exportloopref --exclude-use-default=false --modules-download-mode=vendor --build-tags integration
+          args: --timeout 5m --modules-download-mode=vendor --build-tags integration
 
       - name: Run go test
         run: make test

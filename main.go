@@ -13,16 +13,15 @@ import (
 )
 
 var (
-	// Version of the tool that gets written during build time
+	// Version of the tool that gets written during build time.
 	Version = "dev"
-	// CommitHash of the code that get written during build time
+	// CommitHash of the code that get written during build time.
 	CommitHash     = ""
 	oneOffFlag     = flag.Bool("oneoff", false, "Run the probe measurements one time and exit.")
 	configPathFlag = flag.String("config-path", "/etc/astrolavos", "Specify the path of the config file.")
 )
 
 func main() {
-
 	flag.Parse()
 	fmt.Printf("Starting Astrolavos version:%s - commit hash:%s\n", Version, CommitHash)
 
@@ -39,14 +38,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "error:%v\n", err)
 		os.Exit(1)
 	}
-	log.Info("Shutting down Astrolavos...")
 
+	log.Info("Shutting down Astrolavos...")
 }
 
-// initLogging initiliazes our logging behaviour
+// initLogging initiliazes our logging behaviour.
 func initLogging(logLevel string) {
-
 	var l log.Level
+
 	switch logLevel {
 	case "DEBUG":
 		l = log.DebugLevel

@@ -1,4 +1,4 @@
-FROM alpine:3.19 as builder
+FROM alpine:3.21 as builder
 
 # Switch to distroless as minimal base image to package the astrolavos binary
 FROM "gcr.io/distroless/static:nonroot"
