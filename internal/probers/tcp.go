@@ -115,4 +115,3 @@ func (t *TCP) dial() error {
 
 	return nil
 }
-

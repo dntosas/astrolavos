@@ -1,13 +1,38 @@
 ---
+# Astrolavos Configuration
+# This file defines the endpoints to monitor and their probe configurations
+
 endpoints:
+  # HTTP trace probe example - measures detailed HTTP request timing
   - domain: "www.httpbin.org"
     interval: 5s
     https: true
-    retries: 5
+    retries: 3
     prober: httpTrace
+    tag: "public-api"
+    reuseConnection: true
+
+  # Self-signed certificate example with TLS verification disabled
   - domain: "self-signed.badssl.com"
-    interval: 5s
-    tag: internal-self-signed
-    retries: 5
+    interval: 10s
+    tag: "internal-self-signed"
+    retries: 3
     skipTLSVerification: true
     https: true
+    prober: httpTrace
+
+  # TCP connection probe example
+  - domain: "google.com:443"
+    interval: 15s
+    tag: "tcp-check"
+    retries: 3
+    prober: tcp
+
+  # Internal service example
+  - domain: "localhost:8080"
+    interval: 5s
+    https: false
+    retries: 5
+    prober: httpTrace
+    tag: "internal-service"
+    reuseConnection: false

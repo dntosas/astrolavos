@@ -67,10 +67,13 @@ func (a *Astrolavos) startServerMode() error {
 	log.Debug("Starting Agent")
 	a.agent.start()
 
-	// Initialize HTTP server
+	// Initialize HTTP server with proper timeouts
 	server := &http.Server{
-		Addr: fmt.Sprintf(":%d", a.port),
-		ReadHeaderTimeout: 180*time.Second,
+		Addr:              fmt.Sprintf(":%d", a.port),
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	http.Handle("/metrics", promhttp.Handler())
@@ -80,15 +83,13 @@ func (a *Astrolavos) startServerMode() error {
 
 	// Start listening asynchronously
 	go func() {
-		log.Info("Starting server on port:", a.port)
+		log.WithField("port", a.port).Info("Starting HTTP server")
 
-		if err := server.ListenAndServe(); err != nil {
-			if err.Error() != "http: Server closed" {
-				log.Fatal(fmt.Errorf("%s: %w", "Failed to start listening server", err))
-			}
-
-			log.Info("Server shutdown")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.WithError(err).Fatal("Failed to start HTTP server")
 		}
+
+		log.Info("HTTP server shutdown")
 	}()
 
 	// Setting up signal capturing

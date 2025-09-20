@@ -26,7 +26,7 @@ type YamlEndpoints struct {
 // further.
 func (r *YamlEndpoints) getCleanEndpoints() ([]*machinery.Endpoint, error) {
 	if len(r.Endpoints) == 0 {
-		return []*machinery.Endpoint{}, errors.Errorf("Yaml configuration seems empty or malformed, cannot proceed with no valid endpoints")
+		return []*machinery.Endpoint{}, errors.New("YAML configuration is empty or malformed: no endpoints defined")
 	}
 
 	cleanEndpoints := []*machinery.Endpoint{}
@@ -43,7 +43,7 @@ func (r *YamlEndpoints) getCleanEndpoints() ([]*machinery.Endpoint, error) {
 	}
 
 	if len(cleanEndpoints) == 0 {
-		return []*machinery.Endpoint{}, errors.Errorf("No valid endpoints found inside the endpoint sections coming from yaml config")
+		return []*machinery.Endpoint{}, errors.New("no valid endpoints found in configuration")
 	}
 
 	return cleanEndpoints, nil
@@ -79,11 +79,11 @@ func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 	}
 
 	if *r.Interval < 1000*time.Millisecond {
-		return nil, errors.New("Interval cannot be less that 1 seconds")
+		return nil, errors.New("interval cannot be less than 1 second")
 	}
 
 	if r.Prober != "tcp" && r.Prober != "httpTrace" {
-		return nil, errors.New("Prober should be one of ['tcp','httpTrace']")
+		return nil, errors.Errorf("invalid prober type '%s': must be one of ['tcp', 'httpTrace']", r.Prober)
 	}
 
 	uri := r.Domain

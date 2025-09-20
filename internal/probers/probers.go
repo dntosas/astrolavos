@@ -21,6 +21,8 @@ type Prober interface {
 // ProberConfig struct holds information about configuration each
 // Prober needs.
 type ProberConfig struct {
+	HTTPProberConfig
+
 	wg       *sync.WaitGroup
 	promC    *metrics.PrometheusClient
 	exit     chan bool
@@ -29,7 +31,6 @@ type ProberConfig struct {
 	tag      string
 	interval time.Duration
 	isOneOff bool
-	HTTPProberConfig
 }
 
 // HTTPProberConfig holds information abou the HTTP traces.
