@@ -3,7 +3,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/dntosas/astrolavos/internal/config"
@@ -23,33 +22,39 @@ var (
 
 func main() {
 	flag.Parse()
-	fmt.Printf("Starting Astrolavos version:%s - commit hash:%s\n", Version, CommitHash)
+
+	// Initialize logging early for better error visibility
+	initLogging("INFO") // Default level before config is loaded
+
+	log.WithFields(log.Fields{
+		"version": Version,
+		"commit":  CommitHash,
+	}).Info("Starting Astrolavos")
 
 	cfg, err := config.NewConfig(*configPathFlag)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error:%v\n", err)
-		os.Exit(1)
+		log.WithError(err).Fatal("Failed to load configuration")
 	}
 
+	// Re-initialize logging with config level
 	initLogging(cfg.LogLevel)
 
 	a := machinery.NewAstrolavos(cfg.AppPort, cfg.Endpoints, cfg.PromPushGateway, *oneOffFlag)
 	if err := a.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "error:%v\n", err)
-		os.Exit(1)
+		log.WithError(err).Fatal("Failed to start Astrolavos")
 	}
 
 	log.Info("Shutting down Astrolavos...")
 }
 
-// initLogging initiliazes our logging behaviour.
+// initLogging initializes our logging behavior with structured formatting.
 func initLogging(logLevel string) {
 	var l log.Level
 
 	switch logLevel {
 	case "DEBUG":
 		l = log.DebugLevel
-	case "WARNING":
+	case "WARNING", "WARN":
 		l = log.WarnLevel
 	case "INFO":
 		l = log.InfoLevel
@@ -61,5 +66,12 @@ func initLogging(logLevel string) {
 
 	log.SetLevel(l)
 	log.SetOutput(os.Stdout)
-	log.WithFields(log.Fields{})
+	log.SetFormatter(&log.JSONFormatter{
+		TimestampFormat: "2006-01-02T15:04:05.000Z07:00",
+		FieldMap: log.FieldMap{
+			log.FieldKeyTime:  "timestamp",
+			log.FieldKeyLevel: "level",
+			log.FieldKeyMsg:   "message",
+		},
+	})
 }

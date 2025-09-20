@@ -4,8 +4,8 @@ PROJECT = "astrolavos"
 USER = $(shell id -u)
 GROUP = $(shell id -g)
 GOBUILD_OPTS = -ldflags="-s -w -X main.Version=${VERSION} -X main.CommitHash=${COMMIT}"
-GO_IMAGE = "golang:1.21-alpine"
-GO_IMAGE_CI = "golangci/golangci-lint:v1.54.2"
+GO_IMAGE = "golang:1.25-alpine"
+GO_IMAGE_CI = "golangci/golangci-lint:v2.4.0"
 DISTROLESS_IMAGE = "gcr.io/distroless/static:nonroot"
 IMAGE_TAG_BASE ?= "ghcr.io/dntosas/${PROJECT}"
 
@@ -27,7 +27,7 @@ vet: ## Run go vet against code.
 
 .PHONY: lint
 lint: ## Run golangci-lint against code.
-	@docker run --rm --volume "${PWD}:/app" -w /app "${GO_IMAGE_CI}" golangci-lint run --enable revive,gofmt,exportloopref --exclude-use-default=false --modules-download-mode=vendor --build-tags integration
+	golangci-lint run --timeout 5m --modules-download-mode=vendor --build-tags integration
 
 .PHONY: test
 test:
