@@ -92,14 +92,39 @@ func (t *TCP) runInterval() {
 			return
 		case <-ticker.C:
 			log.Debugf("TCP for %s starts new trace probe", t)
-			err := t.dial()
-			t.promC.UpdateRequestsCounter(t.endpoint, "tcp", t.tag, "")
-
-			if err != nil {
-				log.Errorf("TCP prober of %s error: %v", t, err)
-				t.promC.UpdateErrorsCounter(t.endpoint, "tcp", t.tag, err.Error())
-			}
+			t.executeWithRetry()
 		}
+	}
+}
+
+// executeWithRetry performs TCP dial with exponential backoff retry logic
+func (t *TCP) executeWithRetry() {
+	var err error
+	var isSuccess bool
+
+	// Try with exponential backoff
+	for attempt := 0; attempt < t.retries; attempt++ {
+		err = t.dial()
+
+		if err == nil {
+			isSuccess = true
+			break
+		}
+
+		// Don't sleep on the last attempt
+		if attempt < t.retries-1 {
+			// Exponential backoff: 100ms, 200ms, 400ms, etc.
+			backoffDuration := time.Duration(100*(1<<uint(attempt))) * time.Millisecond
+			log.Debugf("TCP attempt %d/%d failed for %s, retrying after %v", attempt+1, t.retries, t.endpoint, backoffDuration)
+			time.Sleep(backoffDuration)
+		}
+	}
+
+	t.promC.UpdateRequestsCounter(t.endpoint, "tcp", t.tag, "")
+
+	if !isSuccess {
+		log.Errorf("TCP prober of %s failed after %d attempts, error: %v", t, t.retries, err)
+		t.promC.UpdateErrorsCounter(t.endpoint, "tcp", t.tag, err.Error())
 	}
 }
 

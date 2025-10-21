@@ -100,21 +100,47 @@ func (h *HTTPTrace) runInterval() {
 			return
 		case <-ticker.C:
 			log.Debugf("HTTPTrace for %s starts new trace probe", h)
-			t, err := h.trace()
-			h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
-
-			if err != nil {
-				log.Errorf("HTTPTrace of %s error: %v", h, err)
-				h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
-			} else {
-				// Update all exposed Prometheus metrics histograms
-				h.promC.UpdateDNSHistogram(h.endpoint, "httptrace", h.tag, t.dnsDuration)
-				h.promC.UpdateConnHistogram(h.endpoint, "httptrace", h.tag, t.connDuration)
-				h.promC.UpdateTLSHistogram(h.endpoint, "httptrace", h.tag, t.tlsDuration)
-				h.promC.UpdateGotConnHistogram(h.endpoint, "httptrace", h.tag, t.gotConnDuration)
-				h.promC.UpdateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
-				h.promC.UpdateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
-			}
+			h.executeWithRetry()
 		}
+	}
+}
+
+// executeWithRetry performs HTTP trace with exponential backoff retry logic
+func (h *HTTPTrace) executeWithRetry() {
+	var t *tracePoint
+	var err error
+	var isSuccess bool
+
+	// Try with exponential backoff
+	for attempt := 0; attempt < h.retries; attempt++ {
+		t, err = h.trace()
+
+		if err == nil {
+			isSuccess = true
+			break
+		}
+
+		// Don't sleep on the last attempt
+		if attempt < h.retries-1 {
+			// Exponential backoff: 100ms, 200ms, 400ms, etc.
+			backoffDuration := time.Duration(100*(1<<uint(attempt))) * time.Millisecond
+			log.Debugf("HTTPTrace attempt %d/%d failed for %s, retrying after %v", attempt+1, h.retries, h.endpoint, backoffDuration)
+			time.Sleep(backoffDuration)
+		}
+	}
+
+	h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, t.statusCode)
+
+	if !isSuccess {
+		log.Errorf("HTTPTrace of %s failed after %d attempts, error: %v", h, h.retries, err)
+		h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, err.Error())
+	} else {
+		// Update all exposed Prometheus metrics histograms
+		h.promC.UpdateDNSHistogram(h.endpoint, "httptrace", h.tag, t.dnsDuration)
+		h.promC.UpdateConnHistogram(h.endpoint, "httptrace", h.tag, t.connDuration)
+		h.promC.UpdateTLSHistogram(h.endpoint, "httptrace", h.tag, t.tlsDuration)
+		h.promC.UpdateGotConnHistogram(h.endpoint, "httptrace", h.tag, t.gotConnDuration)
+		h.promC.UpdateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
+		h.promC.UpdateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
 	}
 }
