@@ -17,7 +17,7 @@ var (
 			Help:    "Histogram of response times of Astrolavos for DNS part",
 			Buckets: timeBuckets,
 		},
-		[]string{"endpoint", "tag", "type"},
+		[]string{"domain", "tag", "proberType"},
 	)
 
 	connLatencyHistogram = prometheus.NewHistogramVec(
@@ -26,7 +26,7 @@ var (
 			Help:    "Histogram of response times of Astrolavos for Connection part",
 			Buckets: timeBuckets,
 		},
-		[]string{"endpoint", "tag", "type"},
+		[]string{"domain", "tag", "proberType"},
 	)
 
 	tlsLatencyHistogram = prometheus.NewHistogramVec(
@@ -35,7 +35,7 @@ var (
 			Help:    "Histogram of response times of Astrolavos for TLS part",
 			Buckets: timeBuckets,
 		},
-		[]string{"endpoint", "tag", "type"},
+		[]string{"domain", "tag", "proberType"},
 	)
 
 	gotConnLatencyHistogram = prometheus.NewHistogramVec(
@@ -44,7 +44,7 @@ var (
 			Help:    "Histogram of response times of Astrolavos for GotConnection part",
 			Buckets: timeBuckets,
 		},
-		[]string{"endpoint", "tag", "type"},
+		[]string{"domain", "tag", "proberType"},
 	)
 
 	firstByteLatencyHistogram = prometheus.NewHistogramVec(
@@ -53,7 +53,7 @@ var (
 			Help:    "Histogram of response times of Astrolavos for First Byte part",
 			Buckets: timeBuckets,
 		},
-		[]string{"endpoint", "tag", "type"},
+		[]string{"domain", "tag", "proberType"},
 	)
 
 	totalLatencyHistogram = prometheus.NewHistogramVec(
@@ -62,21 +62,21 @@ var (
 			Help:    "Histogram of response times of Astrolavos for Total part",
 			Buckets: timeBuckets,
 		},
-		[]string{"endpoint", "tag", "type"},
+		[]string{"domain", "tag", "proberType"},
 	)
 	totalRequestsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "astrolavos_requests_total",
 			Help: "Statistics of requests made from Astrolavos",
 		},
-		[]string{"endpoint", "tag", "status_code", "type"},
+		[]string{"domain", "tag", "status_code", "proberType"},
 	)
 	totalErrorsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "astrolavos_errors_total",
 			Help: "Statistics of errors made from Astrolavos",
 		},
-		[]string{"endpoint", "tag", "error", "type"},
+		[]string{"domain", "tag", "error", "proberType"},
 	)
 )
 
@@ -114,50 +114,50 @@ func NewPrometheusClient(_ bool, promPushGateway string) *PrometheusClient {
 }
 
 // UpdateDNSHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateDNSHistogram(endpoint, proberType string, tag string, duration float64) {
-	dnsLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateDNSHistogram(domain, proberType string, tag string, duration float64) {
+	dnsLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
 	log.Debug("Update metric for DNS part")
 }
 
 // UpdateConnHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateConnHistogram(endpoint, proberType string, tag string, duration float64) {
-	connLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateConnHistogram(domain, proberType string, tag string, duration float64) {
+	connLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
 	log.Debug("Update metric for Connection part")
 }
 
 // UpdateTLSHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateTLSHistogram(endpoint, proberType string, tag string, duration float64) {
-	tlsLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateTLSHistogram(domain, proberType string, tag string, duration float64) {
+	tlsLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
 	log.Debug("Update metric for TLS part")
 }
 
 // UpdateGotConnHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateGotConnHistogram(endpoint, proberType string, tag string, duration float64) {
-	gotConnLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateGotConnHistogram(domain, proberType string, tag string, duration float64) {
+	gotConnLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
 	log.Debug("Update metric for GotConnection part")
 }
 
 // UpdateFirstByteHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateFirstByteHistogram(endpoint, proberType string, tag string, duration float64) {
-	firstByteLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateFirstByteHistogram(domain, proberType string, tag string, duration float64) {
+	firstByteLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
 	log.Debug("Update metric for FirstByte part")
 }
 
 // UpdateTotalHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateTotalHistogram(endpoint, proberType string, tag string, duration float64) {
-	totalLatencyHistogram.WithLabelValues(endpoint, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateTotalHistogram(domain, proberType string, tag string, duration float64) {
+	totalLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
 	log.Debug("Update metric for Total part")
 }
 
 // UpdateRequestsCounter appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateRequestsCounter(endpoint, proberType string, tag, statusCode string) {
-	totalRequestsCounter.WithLabelValues(endpoint, tag, statusCode, proberType).Inc()
+func (p *PrometheusClient) UpdateRequestsCounter(domain, proberType string, tag, statusCode string) {
+	totalRequestsCounter.WithLabelValues(domain, tag, statusCode, proberType).Inc()
 	log.Debug("Update metric for Total requests counter")
 }
 
 // UpdateErrorsCounter appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateErrorsCounter(endpoint, proberType string, tag, errorMsg string) {
-	totalErrorsCounter.WithLabelValues(endpoint, tag, errorMsg, proberType).Inc()
+func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType string, tag, errorMsg string) {
+	totalErrorsCounter.WithLabelValues(domain, tag, errorMsg, proberType).Inc()
 	log.Debug("Update metric for Total errors counter")
 }
 
