@@ -4,10 +4,12 @@
 
 endpoints:
   # HTTP trace probe example - measures detailed HTTP request timing
+  # Default: retries: 1 (single attempt, no retries)
+  # For cluster scaling resilience, increase retries to 5+
   - domain: "www.httpbin.org"
     interval: 5s
     https: true
-    retries: 3
+    retries: 1
     prober: httpTrace
     tag: "public-api"
     reuseConnection: true
@@ -16,7 +18,7 @@ endpoints:
   - domain: "self-signed.badssl.com"
     interval: 10s
     tag: "internal-self-signed"
-    retries: 3
+    retries: 1
     skipTLSVerification: true
     https: true
     prober: httpTrace
@@ -25,14 +27,14 @@ endpoints:
   - domain: "google.com:443"
     interval: 15s
     tag: "tcp-check"
-    retries: 3
+    retries: 1
     prober: tcp
 
-  # Internal service example
+  # Internal service example - with higher retries for demonstration
   - domain: "localhost:8080"
     interval: 5s
     https: false
-    retries: 5
+    retries: 5  # Example: Higher retries for critical endpoints
     prober: httpTrace
     tag: "internal-service"
     reuseConnection: false

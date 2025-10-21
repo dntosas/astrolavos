@@ -66,6 +66,9 @@ config:
     - domain: "www.httpbin.org"
       interval: 10s
       https: true
+      retries: 1
+      prober: httpTrace
+      tag: "example"
 
 image:
   registry: ghcr.io
@@ -160,27 +163,31 @@ updateStrategy:
 ##
 initContainers: []
 ## @param minReadySeconds `minReadySeconds` to avoid killing pods before we are ready
+## Set to 10 seconds to ensure pods are stable before proceeding with rollout
 ##
-minReadySeconds: 0
+minReadySeconds: 10
 ## @param priorityClassName Priority class assigned to the Pods
 ##
 priorityClassName: ""
 ## @param terminationGracePeriodSeconds In seconds, time the given to the Node exporter pod needs to terminate gracefully
 ## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+## Set to 30 seconds to allow ongoing probes to complete and graceful shutdown
 ##
-terminationGracePeriodSeconds: ""
+terminationGracePeriodSeconds: 30
 
 ## Pod Disruption Budget configuration
 ## ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+## Enabled by default to prevent multiple pods from being evicted simultaneously during node changes
 ##
 pdb:
   ## @param pdb.create Created a PodDisruptionBudget
   ##
-  create: false
+  create: true
   ## @param pdb.minAvailable Min number of pods that must still be available after the eviction.
   ## You can specify an integer or a percentage by setting the value to a string representation of a percentage (eg. "50%"). It will be disabled if set to 0
+  ## When running as DaemonSet, this ensures at least 50% of nodes keep their monitoring pods active
   ##
-  minAvailable: 1
+  minAvailable: "50%"
   ## @param pdb.maxUnavailable Max number of pods that can be unavailable after the eviction.
   ## You can specify an integer or a percentage by setting the value to a string representation of a percentage (eg. "50%"). It will be disabled if set to 0
   ##
@@ -211,6 +218,14 @@ containerSecurityContext:
   readOnlyRootFilesystem: true
   seccompProfile:
     type: RuntimeDefault
+
+## Lifecycle hooks for graceful pod shutdown
+## ref: https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
+##
+lifecycleHooks:
+  preStop:
+    exec:
+      command: ["/bin/sh", "-c", "sleep 15"]
 
 # Prometheus Service Monitor
 serviceMonitor:

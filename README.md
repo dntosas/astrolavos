@@ -40,8 +40,16 @@ Each endpoint entry has the following structure:
     - `httpTrace`, are measurements that track all phases of HTTP calls and they are based on [httptrace](https://golang.google.cn/pkg/net/http/httptrace/) golang library. This was inspired by [httpstat](https://github.com/reorx/httpstat) cli tool.
     - `tcp`, are measurements that try to open a simple TCP connection.
 - `tag`: the tags that you might want to attach to Prometheus metrics that astrolavos is exposing.
-- `retries`: how many times we retry a failed measure attempt. Default is 3.
+- `retries`: how many times to attempt the probe. Default is 1 (single attempt, no retries). For production environments experiencing cluster scaling events, consider increasing to 5+ to handle transient failures gracefully with exponential backoff.
 
+### Intelligent Retry Logic (Optional)
+Astrolavos implements **exponential backoff retry logic** when `retries` is set to 2 or higher. When a probe fails, it automatically retries with increasing delays (100ms, 200ms, 400ms, etc.) before reporting an error. This can eliminate false positives during cluster scaling events or temporary network disruptions.
+
+**Note:** The default is `retries: 1` (no retry) for immediate failure detection. Increase retries if you need resilience during operational events.
+
+For details on configuring retries to handle cluster changes smoothly, see [Smooth Cluster Scaling Guide](./docs/SMOOTH_CLUSTER_SCALING.md).
+
+### Running Modes
 Astrolavos can run either as a server mode, where we expose `latency` endpoint that another astrolavos deployment can target from different cluster and `metrics` endpoint that we expose our metrics in prometheus format.
 
 Besides server mode astrolavos can also run in oneoff mode, where it will run given measurements once, send the metrics to a push gateway and exit. This can be useful for a cronjob setup.
