@@ -19,20 +19,22 @@ import (
 
 // Astrolavos is the main application struct that orchestrates the agent and HTTP server.
 type Astrolavos struct {
-	port     int
-	agent    *agent
-	isOneOff bool
+	port           int
+	agent          *agent
+	maxPayloadSize int
+	isOneOff       bool
 }
 
 // NewAstrolavos creates a new Astrolavos application instance.
-func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, isOneOff bool) *Astrolavos {
+func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, maxPayloadSize int, isOneOff bool) *Astrolavos {
 	promC := metrics.NewPrometheusClient(isOneOff, promPushGateway)
 	a := newAgent(endpoints, isOneOff, promC)
 
 	return &Astrolavos{
-		port:     port,
-		agent:    a,
-		isOneOff: isOneOff,
+		port:           port,
+		agent:          a,
+		maxPayloadSize: maxPayloadSize,
+		isOneOff:       isOneOff,
 	}
 }
 
@@ -68,7 +70,7 @@ func (a *Astrolavos) startServerMode() error {
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/live", handlers.OKHandler)
 	http.HandleFunc("/ready", handlers.OKHandler)
-	http.HandleFunc("/latency", handlers.LatencyHandler)
+	http.HandleFunc("/latency", handlers.NewLatencyHandler(a.maxPayloadSize))
 
 	// Start listening asynchronously
 	go func() {
