@@ -1,11 +1,14 @@
 package handlers_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/dntosas/astrolavos/internal/handlers"
+	"github.com/dntosas/astrolavos/internal/model"
 )
 
 func TestOKHandler(t *testing.T) {
@@ -111,5 +114,56 @@ func TestLatencyHandler_ZeroPayload(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+}
+
+func TestStatusHandler(t *testing.T) {
+	endpoints := []*model.Endpoint{
+		{
+			URI:        "https://example.com",
+			ProberType: "httpTrace",
+			Interval:   5 * time.Second,
+			Retries:    3,
+			Tag:        "prod",
+		},
+		{
+			URI:        "db.internal:5432",
+			ProberType: "tcp",
+			Interval:   10 * time.Second,
+			Retries:    1,
+		},
+	}
+
+	handler := handlers.NewStatusHandler("v1.0.0", endpoints)
+
+	req := httptest.NewRequest(http.MethodGet, "/status", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	if ct := w.Header().Get("Content-Type"); ct != "application/json" {
+		t.Errorf("expected Content-Type 'application/json', got %q", ct)
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to parse JSON response: %v", err)
+	}
+
+	if resp["version"] != "v1.0.0" {
+		t.Errorf("expected version 'v1.0.0', got %v", resp["version"])
+	}
+
+	eps, ok := resp["endpoints"].([]interface{})
+	if !ok {
+		t.Fatal("expected endpoints to be an array")
+	}
+
+	if len(eps) != 2 {
+		t.Errorf("expected 2 endpoints, got %d", len(eps))
 	}
 }
