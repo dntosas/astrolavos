@@ -120,6 +120,7 @@ func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 // Config holds all application configuration.
 type Config struct {
 	AppPort         int
+	MaxPayloadSize  int
 	LogLevel        string
 	PromPushGateway string
 	Endpoints       []*model.Endpoint
@@ -148,6 +149,7 @@ func NewConfig(path string) (*Config, error) {
 
 	return &Config{
 		AppPort:         intPort,
+		MaxPayloadSize:  viper.GetInt("max_payload_size"),
 		LogLevel:        viper.GetString("log_level"),
 		PromPushGateway: viper.GetString("prom_push_gw"),
 		Endpoints:       cleanEndpoints,
@@ -167,6 +169,7 @@ func initViper(path string) {
 	viper.SetDefault("APP_PORT", "3000")
 	viper.SetDefault("LOG_LEVEL", "DEBUG")
 	viper.SetDefault("PROM_PUSH_GW", "localhost")
+	viper.SetDefault("MAX_PAYLOAD_SIZE", 0) // 0 means use handler's default (10MB)
 
 	// Enable VIPER to read Environment Variables
 	viper.AutomaticEnv()

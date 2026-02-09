@@ -27,7 +27,8 @@ func TestLatencyHandler_NoPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency", nil)
 	w := httptest.NewRecorder()
 
-	handlers.LatencyHandler(w, req)
+	handler := handlers.NewLatencyHandler(0)
+	handler(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
@@ -38,7 +39,8 @@ func TestLatencyHandler_ValidPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=100", nil)
 	w := httptest.NewRecorder()
 
-	handlers.LatencyHandler(w, req)
+	handler := handlers.NewLatencyHandler(0)
+	handler(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
@@ -53,7 +55,8 @@ func TestLatencyHandler_InvalidPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=abc", nil)
 	w := httptest.NewRecorder()
 
-	handlers.LatencyHandler(w, req)
+	handler := handlers.NewLatencyHandler(0)
+	handler(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
@@ -64,7 +67,8 @@ func TestLatencyHandler_ExceedsMaxPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=99999999", nil)
 	w := httptest.NewRecorder()
 
-	handlers.LatencyHandler(w, req)
+	handler := handlers.NewLatencyHandler(0)
+	handler(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
@@ -75,11 +79,35 @@ func TestLatencyHandler_ExceedsMaxPayload(t *testing.T) {
 	}
 }
 
+func TestLatencyHandler_CustomMaxPayload(t *testing.T) {
+	// Custom limit of 50 bytes
+	handler := handlers.NewLatencyHandler(50)
+
+	// Under limit: should work
+	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=30", nil)
+	w := httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	// Over limit: should fail
+	req = httptest.NewRequest(http.MethodGet, "/latency?payloadSize=100", nil)
+	w = httptest.NewRecorder()
+	handler(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
+	}
+}
+
 func TestLatencyHandler_ZeroPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=0", nil)
 	w := httptest.NewRecorder()
 
-	handlers.LatencyHandler(w, req)
+	handler := handlers.NewLatencyHandler(0)
+	handler(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
