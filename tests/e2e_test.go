@@ -94,7 +94,7 @@ func VerifyExposedMetrics(t *testing.T, kubectlOptions *k8s.KubectlOptions, podN
 		retries,
 		sleep,
 		func(statusCode int, body string) bool {
-			return statusCode == 200 && strings.Contains(body, "endpoint=\"https://kubernetes\"")
+			return statusCode == 200 && strings.Contains(body, "domain=\"https://kubernetes\"")
 		},
 	)
 }
