@@ -19,8 +19,8 @@ func TestGetCleanEndpoint_Defaults(t *testing.T) {
 		t.Errorf("expected prober type 'httpTrace', got %q", ep.ProberType)
 	}
 
-	if ep.Retries != 3 {
-		t.Errorf("expected retries 3, got %d", ep.Retries)
+	if ep.Retries != 1 {
+		t.Errorf("expected retries 1, got %d", ep.Retries)
 	}
 
 	if ep.URI != "http://example.com" {

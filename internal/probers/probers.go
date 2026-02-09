@@ -27,6 +27,7 @@ type ProberOptions struct {
 	Tag                 string
 	Retries             int
 	Interval            time.Duration
+	TCPTimeout          time.Duration
 	IsOneOff            bool
 	ReuseConnection     bool
 	SkipTLSVerification bool
@@ -36,13 +37,14 @@ type ProberOptions struct {
 type ProberConfig struct {
 	HTTPProberConfig
 
-	wg       *sync.WaitGroup
-	promC    *metrics.PrometheusClient
-	endpoint string
-	retries  int
-	tag      string
-	interval time.Duration
-	isOneOff bool
+	wg         *sync.WaitGroup
+	promC      *metrics.PrometheusClient
+	endpoint   string
+	retries    int
+	tag        string
+	interval   time.Duration
+	tcpTimeout time.Duration
+	isOneOff   bool
 }
 
 // HTTPProberConfig holds HTTP-specific configuration.
@@ -55,13 +57,14 @@ type HTTPProberConfig struct {
 // NewProberConfig creates a new ProberConfig from the given options.
 func NewProberConfig(opts ProberOptions) ProberConfig {
 	p := ProberConfig{
-		wg:       opts.WG,
-		promC:    opts.PromClient,
-		endpoint: opts.Endpoint,
-		retries:  opts.Retries,
-		tag:      opts.Tag,
-		interval: opts.Interval,
-		isOneOff: opts.IsOneOff,
+		wg:         opts.WG,
+		promC:      opts.PromClient,
+		endpoint:   opts.Endpoint,
+		retries:    opts.Retries,
+		tag:        opts.Tag,
+		interval:   opts.Interval,
+		tcpTimeout: opts.TCPTimeout,
+		isOneOff:   opts.IsOneOff,
 	}
 
 	p.HTTPProberConfig = HTTPProberConfig{

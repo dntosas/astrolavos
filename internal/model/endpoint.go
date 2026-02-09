@@ -12,4 +12,5 @@ type Endpoint struct {
 	ProberType          string
 	ReuseConnection     bool
 	SkipTLSVerification bool
+	TCPTimeout          time.Duration
 }
