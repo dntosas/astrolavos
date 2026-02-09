@@ -58,6 +58,7 @@ type YamlEndpoint struct {
 	Prober              string         `yaml:"prober"`
 	ReuseConnection     bool           `yaml:"reuseConnection"`
 	SkipTLSVerification bool           `yaml:"skipTLSVerification"`
+	TCPTimeout          *time.Duration `yaml:"tcpTimeout"`
 }
 
 // getCleanEndpoint validates and converts a YAML endpoint into an application Endpoint.
@@ -96,6 +97,12 @@ func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 		defaultRetries = *r.Retries
 	}
 
+	var defaultTCPTimeout = 10 * time.Second
+
+	if r.TCPTimeout != nil {
+		defaultTCPTimeout = *r.TCPTimeout
+	}
+
 	ep := &model.Endpoint{
 		URI:                 uri,
 		Interval:            *r.Interval,
@@ -104,6 +111,7 @@ func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 		ProberType:          r.Prober,
 		ReuseConnection:     r.ReuseConnection,
 		SkipTLSVerification: r.SkipTLSVerification,
+		TCPTimeout:          defaultTCPTimeout,
 	}
 
 	return ep, nil

@@ -4,14 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"time"
 
 	log "github.com/sirupsen/logrus"
-)
-
-const (
-	// tcpDialTimeout is the maximum time to wait for a TCP connection.
-	tcpDialTimeout = 10 * time.Second
 )
 
 // TCP implements the Prober interface for TCP connection probes.
@@ -49,7 +43,7 @@ func (t *TCP) probe(ctx context.Context) {
 }
 
 func (t *TCP) dial(ctx context.Context) error {
-	dialer := net.Dialer{Timeout: tcpDialTimeout}
+	dialer := net.Dialer{Timeout: t.tcpTimeout}
 
 	conn, err := dialer.DialContext(ctx, "tcp", t.endpoint)
 	if err != nil {

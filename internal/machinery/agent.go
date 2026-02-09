@@ -33,6 +33,7 @@ func newAgent(endpoints []*model.Endpoint, isOneOff bool, promC *metrics.Prometh
 			Tag:                 e.Tag,
 			Retries:             e.Retries,
 			Interval:            e.Interval,
+			TCPTimeout:          e.TCPTimeout,
 			IsOneOff:            isOneOff,
 			ReuseConnection:     e.ReuseConnection,
 			SkipTLSVerification: e.SkipTLSVerification,
