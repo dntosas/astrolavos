@@ -1,35 +1,34 @@
-// Package config contains logic that is related with our application's configuration.
-// Configuration can come from environmental variables or yaml config file.
+// Package config handles loading and validating application configuration
+// from YAML files and environment variables.
 package config
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
-	"github.com/dntosas/astrolavos/internal/machinery"
+	"github.com/dntosas/astrolavos/internal/model"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// YamlEndpoints encapsulates yaml objects that represent the
-// array that holds the endpoints with the monitoring domains.
+// YamlEndpoints encapsulates the top-level YAML configuration containing
+// the list of endpoints to monitor.
 type YamlEndpoints struct {
 	Endpoints []YamlEndpoint `yaml:"endpoints"`
 }
 
-// getCleanEndpoints holds the logic that gets the endpoints from the
-// yaml config, and verify for each one if they are valid.
-// At the end it returns a list of endpoints structures that can be used
-// further.
-func (r *YamlEndpoints) getCleanEndpoints() ([]*machinery.Endpoint, error) {
+// getCleanEndpoints validates and converts YAML endpoint configurations
+// into application-ready Endpoint structs.
+func (r *YamlEndpoints) getCleanEndpoints() ([]*model.Endpoint, error) {
 	if len(r.Endpoints) == 0 {
-		return []*machinery.Endpoint{}, errors.New("YAML configuration is empty or malformed: no endpoints defined")
+		return []*model.Endpoint{}, errors.New("YAML configuration is empty or malformed: no endpoints defined")
 	}
 
-	cleanEndpoints := []*machinery.Endpoint{}
+	cleanEndpoints := []*model.Endpoint{}
 
 	for _, req := range r.Endpoints {
 		c, err := req.getCleanEndpoint()
@@ -43,14 +42,13 @@ func (r *YamlEndpoints) getCleanEndpoints() ([]*machinery.Endpoint, error) {
 	}
 
 	if len(cleanEndpoints) == 0 {
-		return []*machinery.Endpoint{}, errors.New("no valid endpoints found in configuration")
+		return []*model.Endpoint{}, errors.New("no valid endpoints found in configuration")
 	}
 
 	return cleanEndpoints, nil
 }
 
-// YamlEndpoint encapsulates yaml objects that represent
-// endpoints that we want to monitor.
+// YamlEndpoint represents a single endpoint configuration from the YAML file.
 type YamlEndpoint struct {
 	Domain              string         `yaml:"domain"`
 	Interval            *time.Duration `yaml:"interval"`
@@ -62,10 +60,8 @@ type YamlEndpoint struct {
 	SkipTLSVerification bool           `yaml:"skipTLSVerification"`
 }
 
-// getCleanEndpoint holds the logic of checking and creating an endpoint
-// coming from the yaml config and returns an endpoint structure that
-// can be used further in our code.
-func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
+// getCleanEndpoint validates and converts a YAML endpoint into an application Endpoint.
+func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 	var defaultRetries = 3
 
 	var defaultInterval = 5000 * time.Millisecond
@@ -83,7 +79,7 @@ func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 	}
 
 	if r.Prober != "tcp" && r.Prober != "httpTrace" {
-		return nil, errors.Errorf("invalid prober type '%s': must be one of ['tcp', 'httpTrace']", r.Prober)
+		return nil, fmt.Errorf("invalid prober type '%s': must be one of ['tcp', 'httpTrace']", r.Prober)
 	}
 
 	uri := r.Domain
@@ -100,41 +96,46 @@ func (r *YamlEndpoint) getCleanEndpoint() (*machinery.Endpoint, error) {
 		defaultRetries = *r.Retries
 	}
 
-	ep := &machinery.Endpoint{URI: uri, Interval: *r.Interval, Tag: r.Tag, Retries: defaultRetries, ProberType: r.Prober,
-		ReuseConnection: r.ReuseConnection, SkipTLSVerification: r.SkipTLSVerification,
+	ep := &model.Endpoint{
+		URI:                 uri,
+		Interval:            *r.Interval,
+		Tag:                 r.Tag,
+		Retries:             defaultRetries,
+		ProberType:          r.Prober,
+		ReuseConnection:     r.ReuseConnection,
+		SkipTLSVerification: r.SkipTLSVerification,
 	}
 
 	return ep, nil
 }
 
-// Config holds all our configuration coming from user that our app needs.
+// Config holds all application configuration.
 type Config struct {
 	AppPort         int
 	LogLevel        string
 	PromPushGateway string
-	Endpoints       []*machinery.Endpoint
+	Endpoints       []*model.Endpoint
 }
 
-// NewConfig constructs and returns the struct that will host
-// all our configuration variables.
+// NewConfig loads and validates configuration from the given path.
 func NewConfig(path string) (*Config, error) {
 	initViper(path)
 
 	r, err := getYamlConfig()
 	if err != nil {
-		return nil, errors.Wrap(err, "Couldn't get a yaml config")
+		return nil, fmt.Errorf("failed to load YAML config: %w", err)
 	}
 
 	cleanEndpoints, err := r.getCleanEndpoints()
 	if err != nil {
-		return nil, errors.Wrap(err, "Couldn't get a valid yaml config")
+		return nil, fmt.Errorf("failed to validate endpoints: %w", err)
 	}
 
 	port := viper.GetString("app_port")
 
-	intPort, ok := strconv.Atoi(port)
-	if ok != nil {
-		return nil, errors.New("Couldn't get a valid integer for the ASTROLAVOS_PORT configuration variable")
+	intPort, err := strconv.Atoi(port)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ASTROLAVOS_PORT value %q: %w", port, err)
 	}
 
 	return &Config{
@@ -145,7 +146,7 @@ func NewConfig(path string) (*Config, error) {
 	}, nil
 }
 
-// initViper initializes all viper configuration that we need.
+// initViper initializes Viper configuration with defaults and env variable support.
 func initViper(path string) {
 	// Set global options
 	viper.AddConfigPath(path)
@@ -154,7 +155,7 @@ func initViper(path string) {
 	viper.SetConfigType("yaml")
 	viper.SetEnvPrefix("astrolavos")
 
-	// Set default for our existing env variables
+	// Set defaults for environment variables
 	viper.SetDefault("APP_PORT", "3000")
 	viper.SetDefault("LOG_LEVEL", "DEBUG")
 	viper.SetDefault("PROM_PUSH_GW", "localhost")
@@ -163,20 +164,16 @@ func initViper(path string) {
 	viper.AutomaticEnv()
 }
 
-// getYamlConfig reads the config yaml file that contains the user's
-// requests for monitoring domains. After successfully reading the file
-// the function returns an YamlEndpoints struct that contains all info from
-// the file.
+// getYamlConfig reads and parses the YAML configuration file.
 func getYamlConfig() (*YamlEndpoints, error) {
 	if err := viper.ReadInConfig(); err != nil {
-		return nil, errors.Wrap(err, "Error reading config file")
+		return nil, fmt.Errorf("error reading config file: %w", err)
 	}
 
 	var ye YamlEndpoints
 
-	err := viper.Unmarshal(&ye)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to decode config yaml into struct")
+	if err := viper.Unmarshal(&ye); err != nil {
+		return nil, fmt.Errorf("unable to decode config YAML into struct: %w", err)
 	}
 
 	return &ye, nil

@@ -1,7 +1,10 @@
+# Build stage: only used for CA certificates
 FROM alpine:3.22 AS builder
 
-# Switch to distroless as minimal base image to package the astrolavos binary
-FROM "gcr.io/distroless/static:nonroot"
+# Runtime stage: minimal distroless image
+# Note: The binary is built externally (via Makefile or GoReleaser)
+# and copied into this image. Run `make build` before `make docker-build`.
+FROM gcr.io/distroless/static:nonroot
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 WORKDIR /
 COPY astrolavos .

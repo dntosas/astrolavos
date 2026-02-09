@@ -8,6 +8,13 @@ on:
       - '**/*.go'
       - 'go.mod'
       - 'go.sum'
+  pull_request:
+      paths:
+      - '.github/workflows/*'
+      - '*.go'
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
 
 jobs:
   build:
@@ -15,12 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v5.0.0
+        uses: actions/setup-go@v5
         with:
           go-version: '1.25'
 
       - name: Checkout code
-        uses: actions/checkout@v4.0.0
+        uses: actions/checkout@v4
 
       - name: Run go fmt
         run: make fmt
@@ -28,22 +35,11 @@ jobs:
       - name: Run go vet
         run: make vet
 
-      # - name: Run go lint
-      #   uses: golangci/golangci-lint-action@v8
-      #   with:
-      #     version: v1.61.0
-      #     args: --timeout 5m --modules-download-mode=vendor --build-tags integration
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.4.0
+          args: --timeout 5m --modules-download-mode=vendor
 
       - name: Run go test
         run: make test
-
-      # - name: Upload coverage to Codecov
-      #   uses: codecov/codecov-action@v3
-      #   with:
-      #     token: ${{ secrets.CODECOV_TOKEN }}
-      #     env_vars: GO
-      #     fail_ci_if_error: true
-      #     files: ./cover.out
-      #     flags: unittests
-      #     name: codecov-umbrella
-      #     verbose: true

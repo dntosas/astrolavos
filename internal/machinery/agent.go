@@ -1,32 +1,44 @@
-// Package machinery holds functionality for creating a new tracing agent.
+// Package machinery holds the core application logic for the Astrolavos agent.
 package machinery
 
 import (
+	"context"
 	"sync"
 
 	"github.com/dntosas/astrolavos/internal/metrics"
+	"github.com/dntosas/astrolavos/internal/model"
 	"github.com/dntosas/astrolavos/internal/probers"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// agent struct is holding info for our tracing agent.
+// agent manages a collection of probers and coordinates their lifecycle.
 type agent struct {
 	probers []probers.Prober
 	wg      *sync.WaitGroup
 	promC   *metrics.PrometheusClient
 }
 
-// newAgent is the constructor of Agent struct.
-func newAgent(endpoints []*Endpoint, isOneOff bool, promC *metrics.PrometheusClient) *agent {
+// newAgent creates a new agent with probers for each configured endpoint.
+func newAgent(endpoints []*model.Endpoint, isOneOff bool, promC *metrics.PrometheusClient) *agent {
 	var wg sync.WaitGroup
-
-	var o probers.Prober
 
 	probersList := []probers.Prober{}
 
 	for _, e := range endpoints {
-		p := probers.NewProberConfig(&wg, e.URI, e.Retries, e.Tag, e.Interval, isOneOff, e.ReuseConnection, e.SkipTLSVerification, promC)
+		p := probers.NewProberConfig(probers.ProberOptions{
+			WG:                  &wg,
+			PromClient:          promC,
+			Endpoint:            e.URI,
+			Tag:                 e.Tag,
+			Retries:             e.Retries,
+			Interval:            e.Interval,
+			IsOneOff:            isOneOff,
+			ReuseConnection:     e.ReuseConnection,
+			SkipTLSVerification: e.SkipTLSVerification,
+		})
+
+		var o probers.Prober
 
 		switch e.ProberType {
 		case "tcp":
@@ -34,7 +46,7 @@ func newAgent(endpoints []*Endpoint, isOneOff bool, promC *metrics.PrometheusCli
 		case "httpTrace":
 			o = probers.NewHTTPTrace(p)
 		default:
-			log.Errorf("Couldn't find a legit prober type: %s", e.ProberType)
+			log.Errorf("Unknown prober type: %s", e.ProberType)
 
 			continue
 		}
@@ -51,25 +63,17 @@ func newAgent(endpoints []*Endpoint, isOneOff bool, promC *metrics.PrometheusCli
 	}
 }
 
-// start is starting all workers of the agent.
-func (a *agent) start() {
-	log.Debug(a.probers)
-
+// start launches all probers as goroutines with the given context.
+func (a *agent) start(ctx context.Context) {
 	for _, prober := range a.probers {
-		log.Debugf("Starting go routing for prober: %s", prober)
-		go prober.Run()
+		log.Debugf("Starting goroutine for prober: %s", prober)
+		go prober.Run(ctx)
 	}
 }
 
-// stop  is responsible to send exit signal to all workers.
-func (a *agent) stop() {
-	log.Info("Stopping all individual probers of the agent")
-
-	for _, prober := range a.probers {
-		prober.Stop()
-	}
-
+// wait blocks until all prober goroutines have finished.
+func (a *agent) wait() {
 	log.Debug("Waiting for all agent probers to exit")
 	a.wg.Wait()
-	log.Info("Exiting agent now.")
+	log.Info("All agent probers have stopped")
 }

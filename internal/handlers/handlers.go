@@ -1,4 +1,4 @@
-// Package handlers represent
+// Package handlers provides HTTP request handlers for the Astrolavos server.
 package handlers
 
 import (
@@ -12,19 +12,22 @@ const (
 	maxPayloadSize = 10485760
 )
 
-// OKHandler empty handler that sends back 200 with 0 content.
+// OKHandler responds with HTTP 200 and an empty body.
+// Used for liveness and readiness probes.
 func OKHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Length", "0")
 	w.WriteHeader(http.StatusOK)
-	w.Header().Add("Content-Length", "0")
 }
 
-// LatencyHandler handles requests sent on /latency endpoint.
+// LatencyHandler handles requests on the /latency endpoint.
+// It optionally returns a response body of a configurable size
+// via the payloadSize query parameter.
 func LatencyHandler(w http.ResponseWriter, r *http.Request) {
 	queryMap := r.URL.Query()
 
 	payloadSize := queryMap.Get("payloadSize")
 	if payloadSize == "" {
-		w.Header().Add("Content-Length", "0")
+		w.Header().Set("Content-Length", "0")
 		w.WriteHeader(http.StatusOK)
 
 		return
@@ -32,7 +35,7 @@ func LatencyHandler(w http.ResponseWriter, r *http.Request) {
 
 	i, err := strconv.Atoi(payloadSize)
 	if err != nil {
-		w.Header().Add("Content-Length", "0")
+		w.Header().Set("Content-Length", "0")
 		w.WriteHeader(http.StatusBadRequest)
 		log.Error(err)
 
@@ -41,7 +44,7 @@ func LatencyHandler(w http.ResponseWriter, r *http.Request) {
 
 	if i > maxPayloadSize {
 		payloadSizeExceeded := "Exceeded max allowed payloadSize: " + strconv.Itoa(maxPayloadSize)
-		w.Header().Add("Content-Length", strconv.Itoa(len(payloadSizeExceeded)))
+		w.Header().Set("Content-Length", strconv.Itoa(len(payloadSizeExceeded)))
 		w.WriteHeader(http.StatusBadRequest)
 
 		_, err = w.Write([]byte(payloadSizeExceeded))
@@ -52,7 +55,7 @@ func LatencyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("Content-Length", payloadSize)
+	w.Header().Set("Content-Length", payloadSize)
 	w.WriteHeader(http.StatusOK)
 
 	_, err = w.Write(make([]byte, i))

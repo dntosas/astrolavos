@@ -1,20 +1,24 @@
-// Package metrics provides functionality for building Prometheus-compatible structs.
+// Package metrics provides functionality for building Prometheus-compatible metric collectors.
 package metrics
 
 import (
+	"context"
+	"errors"
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/push"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	// TimeBuckets is based on Prometheus client_golang prometheus.DefBuckets.
+	// timeBuckets is based on Prometheus client_golang prometheus.DefBuckets.
 	timeBuckets = prometheus.ExponentialBuckets(0.00025, 2, 16) // from 0.25ms to 8 seconds
 
 	dnsLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "astrolavos_dns_latency_seconds",
-			Help:    "Histogram of response times of Astrolavos for DNS part",
+			Help:    "Histogram of DNS resolution latency in seconds",
 			Buckets: timeBuckets,
 		},
 		[]string{"domain", "tag", "proberType"},
@@ -23,7 +27,7 @@ var (
 	connLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "astrolavos_conn_latency_seconds",
-			Help:    "Histogram of response times of Astrolavos for Connection part",
+			Help:    "Histogram of TCP connection latency in seconds",
 			Buckets: timeBuckets,
 		},
 		[]string{"domain", "tag", "proberType"},
@@ -32,7 +36,7 @@ var (
 	tlsLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "astrolavos_tls_latency_seconds",
-			Help:    "Histogram of response times of Astrolavos for TLS part",
+			Help:    "Histogram of TLS handshake latency in seconds",
 			Buckets: timeBuckets,
 		},
 		[]string{"domain", "tag", "proberType"},
@@ -41,7 +45,7 @@ var (
 	gotConnLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "astrolavos_gotconn_latency_seconds",
-			Help:    "Histogram of response times of Astrolavos for GotConnection part",
+			Help:    "Histogram of time to obtain a connection in seconds",
 			Buckets: timeBuckets,
 		},
 		[]string{"domain", "tag", "proberType"},
@@ -50,7 +54,7 @@ var (
 	firstByteLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "astrolavos_firstbyte_latency_seconds",
-			Help:    "Histogram of response times of Astrolavos for First Byte part",
+			Help:    "Histogram of time to first byte in seconds",
 			Buckets: timeBuckets,
 		},
 		[]string{"domain", "tag", "proberType"},
@@ -59,35 +63,35 @@ var (
 	totalLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "astrolavos_total_latency_seconds",
-			Help:    "Histogram of response times of Astrolavos for Total part",
+			Help:    "Histogram of total request latency in seconds",
 			Buckets: timeBuckets,
 		},
 		[]string{"domain", "tag", "proberType"},
 	)
+
 	totalRequestsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "astrolavos_requests_total",
-			Help: "Statistics of requests made from Astrolavos",
+			Help: "Total number of probe requests made by Astrolavos",
 		},
 		[]string{"domain", "tag", "status_code", "proberType"},
 	)
+
 	totalErrorsCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "astrolavos_errors_total",
-			Help: "Statistics of errors made from Astrolavos",
+			Help: "Total number of probe errors encountered by Astrolavos",
 		},
 		[]string{"domain", "tag", "error", "proberType"},
 	)
 )
 
-// PrometheusClient struct holds information that will be needed
-// during the program's lifecycle regarding prometheus communication.
+// PrometheusClient holds state needed for Prometheus metric collection and pushing.
 type PrometheusClient struct {
 	pusher *push.Pusher
 }
 
-// NewPrometheusClient initializes a new prometheus clinets
-// that we can use to deal with our metrics.
+// NewPrometheusClient initializes a new Prometheus client and registers all metrics.
 func NewPrometheusClient(_ bool, promPushGateway string) *PrometheusClient {
 	prometheus.MustRegister(dnsLatencyHistogram)
 	prometheus.MustRegister(connLatencyHistogram)
@@ -113,61 +117,92 @@ func NewPrometheusClient(_ bool, promPushGateway string) *PrometheusClient {
 	return &PrometheusClient{pusher: pusher}
 }
 
-// UpdateDNSHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateDNSHistogram(domain, proberType string, tag string, duration float64) {
+// UpdateDNSHistogram records a DNS resolution duration observation.
+func (p *PrometheusClient) UpdateDNSHistogram(domain, proberType, tag string, duration float64) {
 	dnsLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
-	log.Debug("Update metric for DNS part")
+	log.Debug("Updated metric for DNS latency")
 }
 
-// UpdateConnHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateConnHistogram(domain, proberType string, tag string, duration float64) {
+// UpdateConnHistogram records a TCP connection duration observation.
+func (p *PrometheusClient) UpdateConnHistogram(domain, proberType, tag string, duration float64) {
 	connLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
-	log.Debug("Update metric for Connection part")
+	log.Debug("Updated metric for connection latency")
 }
 
-// UpdateTLSHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateTLSHistogram(domain, proberType string, tag string, duration float64) {
+// UpdateTLSHistogram records a TLS handshake duration observation.
+func (p *PrometheusClient) UpdateTLSHistogram(domain, proberType, tag string, duration float64) {
 	tlsLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
-	log.Debug("Update metric for TLS part")
+	log.Debug("Updated metric for TLS latency")
 }
 
-// UpdateGotConnHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateGotConnHistogram(domain, proberType string, tag string, duration float64) {
+// UpdateGotConnHistogram records the time to obtain a connection.
+func (p *PrometheusClient) UpdateGotConnHistogram(domain, proberType, tag string, duration float64) {
 	gotConnLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
-	log.Debug("Update metric for GotConnection part")
+	log.Debug("Updated metric for GotConnection latency")
 }
 
-// UpdateFirstByteHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateFirstByteHistogram(domain, proberType string, tag string, duration float64) {
+// UpdateFirstByteHistogram records the time to first byte.
+func (p *PrometheusClient) UpdateFirstByteHistogram(domain, proberType, tag string, duration float64) {
 	firstByteLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
-	log.Debug("Update metric for FirstByte part")
+	log.Debug("Updated metric for FirstByte latency")
 }
 
-// UpdateTotalHistogram appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateTotalHistogram(domain, proberType string, tag string, duration float64) {
+// UpdateTotalHistogram records the total request duration.
+func (p *PrometheusClient) UpdateTotalHistogram(domain, proberType, tag string, duration float64) {
 	totalLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
-	log.Debug("Update metric for Total part")
+	log.Debug("Updated metric for total latency")
 }
 
-// UpdateRequestsCounter appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateRequestsCounter(domain, proberType string, tag, statusCode string) {
+// UpdateRequestsCounter increments the total requests counter.
+func (p *PrometheusClient) UpdateRequestsCounter(domain, proberType, tag, statusCode string) {
 	totalRequestsCounter.WithLabelValues(domain, tag, statusCode, proberType).Inc()
-	log.Debug("Update metric for Total requests counter")
+	log.Debug("Updated metric for total requests counter")
 }
 
-// UpdateErrorsCounter appends metrics values into corresponding Histogram.
-func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType string, tag, errorMsg string) {
-	totalErrorsCounter.WithLabelValues(domain, tag, errorMsg, proberType).Inc()
-	log.Debug("Update metric for Total errors counter")
+// UpdateErrorsCounter increments the total errors counter with a categorized error type.
+// Error messages are categorized into a fixed set of labels to prevent cardinality explosion.
+func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType, tag string, err error) {
+	category := CategorizeError(err)
+	totalErrorsCounter.WithLabelValues(domain, tag, category, proberType).Inc()
+	log.Debug("Updated metric for total errors counter")
 }
 
-// PrometheusPush sends the collected prometheus stats to
-// the prometheus push gateway.
+// CategorizeError maps an error to a known category string for use as a Prometheus label.
+// This prevents high cardinality from raw error messages.
+func CategorizeError(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+
+	errStr := strings.ToLower(err.Error())
+
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	case errors.Is(err, context.Canceled):
+		return "canceled"
+	case strings.Contains(errStr, "no such host") || strings.Contains(errStr, "dns"):
+		return "dns_error"
+	case strings.Contains(errStr, "connection refused"):
+		return "connection_refused"
+	case strings.Contains(errStr, "connection reset"):
+		return "connection_reset"
+	case strings.Contains(errStr, "timeout"):
+		return "timeout"
+	case strings.Contains(errStr, "tls") || strings.Contains(errStr, "x509") || strings.Contains(errStr, "certificate"):
+		return "tls_error"
+	case strings.Contains(errStr, "eof"):
+		return "eof"
+	default:
+		return "unknown"
+	}
+}
+
+// PrometheusPush sends the collected Prometheus metrics to the push gateway.
 func (p *PrometheusClient) PrometheusPush() {
-	log.Debugf("Pushing metrics to pushgateway")
+	log.Debug("Pushing metrics to push gateway")
 
-	err := p.pusher.Push()
-	if err != nil {
-		log.Error(err)
+	if err := p.pusher.Push(); err != nil {
+		log.WithError(err).Error("Failed to push metrics to push gateway")
 	}
 }

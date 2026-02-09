@@ -67,7 +67,7 @@ run: ## Run astrolavos from local
 
 .PHONY: docker-build
 docker-build: build ## Build docker image
-	docker build --build-arg GO_IMAGE=${GO_IMAGE} --build-arg DISTROLESS_IMAGE=${DISTROLESS_IMAGE} -t ${IMAGE_TAG_BASE}:${VERSION} --no-cache .
+	docker build -t ${IMAGE_TAG_BASE}:${VERSION} --no-cache .
 
 .PHONY: docker-push
 docker-push: ## Push docker image
