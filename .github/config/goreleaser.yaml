@@ -72,12 +72,6 @@ docker_manifests:
       - ghcr.io/dntosas/{{ .ProjectName }}:latest-amd64
       - ghcr.io/dntosas/{{ .ProjectName }}:latest-arm64
 
-# TODO: Sign docker images
-# docker_signs:
-# - artifacts: all
-#   stdin: "{{ .Env.COSIGN_PASSWORD }}"
-#   args: ["sign", "--key=cosign.key", "${artifact}@${digest}", "--yes"]
-
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of uname.
