@@ -62,7 +62,7 @@ type YamlEndpoint struct {
 
 // getCleanEndpoint validates and converts a YAML endpoint into an application Endpoint.
 func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
-	var defaultRetries = 3
+	var defaultRetries = 1
 
 	var defaultInterval = 5000 * time.Millisecond
 
