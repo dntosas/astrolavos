@@ -1,6 +1,6 @@
 # astrolavos
 
-![Version: 0.3.0](https://img.shields.io/badge/Version-0.3.0-informational?style=flat-square)
+![Version: 0.11.0](https://img.shields.io/badge/Version-0.11.0-informational?style=flat-square)
 
 A Helm Chart for deploying Astrolavos Latency Measuring Tool
 
@@ -21,7 +21,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://charts.bitnami.com/bitnami | common | 2.x.x |
+| https://charts.bitnami.com/bitnami | common | 2.24.0 |
 
 ## Values
 
@@ -40,6 +40,9 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | config.endpoints[0].domain | string | `"www.httpbin.org"` |  |
 | config.endpoints[0].https | bool | `true` |  |
 | config.endpoints[0].interval | string | `"10s"` |  |
+| config.endpoints[0].prober | string | `"httpTrace"` |  |
+| config.endpoints[0].retries | int | `1` |  |
+| config.endpoints[0].tag | string | `"example"` |  |
 | containerPorts.http | int | `3000` |  |
 | containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | containerSecurityContext.enabled | bool | `true` |  |
@@ -48,6 +51,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | containerSecurityContext.runAsNonRoot | bool | `true` |  |
 | containerSecurityContext.runAsUser | int | `65532` |  |
 | containerSecurityContext.seccompProfile.type | string | `"RuntimeDefault"` |  |
+| deployAsDaemonSet | bool | `true` |  |
 | extraArgs | object | `{}` |  |
 | extraEnvVars.ASTROLAVOS_LOG_LEVEL | string | `"INFO"` |  |
 | extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s) |
@@ -60,7 +64,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | image.pullSecrets | object | `{}` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"dntosas/astrolavos"` |  |
-| image.tag | string | `"v0.3.0"` |  |
+| image.tag | string | `"v0.11.0"` |  |
 | ingress.annotations | object | `{}` |  |
 | ingress.apiVersion | string | `""` |  |
 | ingress.enabled | bool | `false` |  |
@@ -76,21 +80,24 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | ingress.selfSigned | bool | `false` |  |
 | ingress.tls | bool | `false` |  |
 | initContainers | list | `[]` |  |
+| lifecycleHooks.preStop.exec.command[0] | string | `"/bin/sh"` |  |
+| lifecycleHooks.preStop.exec.command[1] | string | `"-c"` |  |
+| lifecycleHooks.preStop.exec.command[2] | string | `"sleep 15"` |  |
 | livenessProbe.enabled | bool | `true` |  |
 | livenessProbe.failureThreshold | int | `3` |  |
 | livenessProbe.initialDelaySeconds | int | `1` |  |
 | livenessProbe.periodSeconds | int | `10` |  |
 | livenessProbe.successThreshold | int | `1` |  |
 | livenessProbe.timeoutSeconds | int | `5` |  |
-| minReadySeconds | int | `0` |  |
+| minReadySeconds | int | `10` |  |
 | nameOverride | string | `""` |  |
 | nodeAffinityPreset.key | string | `""` |  |
 | nodeAffinityPreset.type | string | `""` |  |
 | nodeAffinityPreset.values | list | `[]` |  |
 | nodeSelector | object | `{}` |  |
-| pdb.create | bool | `false` |  |
+| pdb.create | bool | `true` |  |
 | pdb.maxUnavailable | int | `0` |  |
-| pdb.minAvailable | int | `1` |  |
+| pdb.minAvailable | string | `"50%"` |  |
 | podAffinityPreset | string | `""` |  |
 | podAnnotations | object | `{}` |  |
 | podAntiAffinityPreset | string | `"soft"` |  |
@@ -135,7 +142,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | serviceMonitor.podTargetLabels | list | `[]` | Labels from the Kubernetes pod to be transferred to the created metrics |
 | serviceMonitor.relabellings | list | `[]` | Metrics RelabelConfigs to apply to samples before scraping. |
 | serviceMonitor.scrapeTimeout | string | `""` | The timeout after which the scrape is ended |
-| terminationGracePeriodSeconds | string | `""` |  |
+| terminationGracePeriodSeconds | int | `30` |  |
 | tolerations | list | `[]` |  |
 | topologySpreadConstraints | list | `[]` |  |
 | updateStrategy.rollingUpdate.maxUnavailable | int | `1` |  |
