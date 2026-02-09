@@ -21,18 +21,22 @@ import (
 type Astrolavos struct {
 	port           int
 	agent          *agent
+	endpoints      []*model.Endpoint
+	version        string
 	maxPayloadSize int
 	isOneOff       bool
 }
 
 // NewAstrolavos creates a new Astrolavos application instance.
-func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, maxPayloadSize int, isOneOff bool) *Astrolavos {
+func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, version string, maxPayloadSize int, isOneOff bool) *Astrolavos {
 	promC := metrics.NewPrometheusClient(isOneOff, promPushGateway)
 	a := newAgent(endpoints, isOneOff, promC)
 
 	return &Astrolavos{
 		port:           port,
 		agent:          a,
+		endpoints:      endpoints,
+		version:        version,
 		maxPayloadSize: maxPayloadSize,
 		isOneOff:       isOneOff,
 	}
@@ -71,6 +75,7 @@ func (a *Astrolavos) startServerMode() error {
 	http.HandleFunc("/live", handlers.OKHandler)
 	http.HandleFunc("/ready", handlers.OKHandler)
 	http.HandleFunc("/latency", handlers.NewLatencyHandler(a.maxPayloadSize))
+	http.HandleFunc("/status", handlers.NewStatusHandler(a.version, a.endpoints))
 
 	// Start listening asynchronously
 	go func() {

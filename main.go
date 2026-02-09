@@ -39,7 +39,7 @@ func main() {
 	// Re-initialize logging with config level
 	initLogging(cfg.LogLevel)
 
-	a := machinery.NewAstrolavos(cfg.AppPort, cfg.Endpoints, cfg.PromPushGateway, cfg.MaxPayloadSize, *oneOffFlag)
+	a := machinery.NewAstrolavos(cfg.AppPort, cfg.Endpoints, cfg.PromPushGateway, Version, cfg.MaxPayloadSize, *oneOffFlag)
 	if err := a.Start(); err != nil {
 		log.WithError(err).Fatal("Failed to start Astrolavos")
 	}

@@ -2,8 +2,11 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
+
+	"github.com/dntosas/astrolavos/internal/model"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -63,6 +66,49 @@ func NewLatencyHandler(maxPayloadSize int) http.HandlerFunc {
 
 		_, err = w.Write(make([]byte, i))
 		if err != nil {
+			log.Error(err)
+		}
+	}
+}
+
+// statusEndpoint represents a single endpoint in the status response.
+type statusEndpoint struct {
+	URI        string `json:"uri"`
+	ProberType string `json:"prober_type"`
+	Interval   string `json:"interval"`
+	Retries    int    `json:"retries"`
+	Tag        string `json:"tag,omitempty"`
+}
+
+// statusResponse is the JSON structure returned by the /status endpoint.
+type statusResponse struct {
+	Version   string           `json:"version"`
+	Endpoints []statusEndpoint `json:"endpoints"`
+}
+
+// NewStatusHandler creates a handler that returns the current configuration as JSON.
+func NewStatusHandler(version string, endpoints []*model.Endpoint) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		eps := make([]statusEndpoint, 0, len(endpoints))
+		for _, e := range endpoints {
+			eps = append(eps, statusEndpoint{
+				URI:        e.URI,
+				ProberType: e.ProberType,
+				Interval:   e.Interval.String(),
+				Retries:    e.Retries,
+				Tag:        e.Tag,
+			})
+		}
+
+		resp := statusResponse{
+			Version:   version,
+			Endpoints: eps,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			log.Error(err)
 		}
 	}
