@@ -1,18 +1,19 @@
 package probers
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptrace"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
 
-// Desc.
+// tracePoint captures timing data at various stages of an HTTP request lifecycle.
 type tracePoint struct {
 	dnsStartTime time.Time
 	dnsDoneTime  time.Time
@@ -55,7 +56,7 @@ func (t *tracePoint) dnsStartHandler(_ httptrace.DNSStartInfo) {
 
 func (t *tracePoint) dnsDoneHandler(d httptrace.DNSDoneInfo) {
 	if d.Err != nil {
-		t.err = errors.Wrap(d.Err, "Error occurred while tracing on DNS part")
+		t.err = fmt.Errorf("DNS resolution failed: %w", d.Err)
 
 		return
 	}
@@ -73,7 +74,7 @@ func (t *tracePoint) connStartHandler(_, _ string) {
 
 func (t *tracePoint) connDoneHandler(_, _ string, err error) {
 	if err != nil {
-		t.err = errors.Wrap(err, "Error occurred while tracing on TCP connection part")
+		t.err = fmt.Errorf("TCP connection failed: %w", err)
 
 		return
 	}
@@ -91,7 +92,7 @@ func (t *tracePoint) tlsStartHandler() {
 
 func (t *tracePoint) tlsDoneHandler(_ tls.ConnectionState, err error) {
 	if err != nil {
-		t.err = errors.Wrap(err, "Error occurred while tracing on TLS part")
+		t.err = fmt.Errorf("TLS handshake failed: %w", err)
 
 		return
 	}
@@ -135,17 +136,14 @@ func (h *HTTPTrace) getClient() *http.Client {
 	return getCustomClient(h.reuseConnection, h.skipTLS)
 }
 
-func (h *HTTPTrace) trace() (*tracePoint, error) {
+func (h *HTTPTrace) trace(ctx context.Context) (*tracePoint, error) {
 	t := newTracePoint()
 
-	// TODO: make sure our endpoint is valid http/https uri
-	req, err := http.NewRequest(http.MethodGet, h.endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.endpoint, nil)
 	if err != nil {
-		return t, errors.Wrap(err, "Creation of new request failed")
+		return t, fmt.Errorf("creation of new request failed: %w", err)
 	}
 
-	// TODO: research if we need a new connection each time
-	// If we don't make sure we have proper handling for 0 timings
 	trace := &httptrace.ClientTrace{
 		GetConn:              t.getConnTimeHandler,
 		DNSStart:             t.dnsStartHandler,
@@ -162,18 +160,17 @@ func (h *HTTPTrace) trace() (*tracePoint, error) {
 
 	resp, err := h.getClient().Do(req)
 	if err != nil {
-		return t, errors.Wrap(err, "Request failed")
+		return t, fmt.Errorf("request failed: %w", err)
 	}
 
-	// Close Response
+	// Read and close response body
 	_, err = io.ReadAll(resp.Body)
 	if err != nil {
-		return t, errors.Wrap(err, "Reading request body failed")
+		return t, fmt.Errorf("reading response body failed: %w", err)
 	}
 
-	err = resp.Body.Close()
-	if err != nil {
-		return t, errors.Wrap(err, "Closing request body failed")
+	if err = resp.Body.Close(); err != nil {
+		return t, fmt.Errorf("closing response body failed: %w", err)
 	}
 
 	t.statusCode = strconv.Itoa(resp.StatusCode)
@@ -181,10 +178,10 @@ func (h *HTTPTrace) trace() (*tracePoint, error) {
 	t.totalDoneHandler()
 
 	if t.err != nil {
-		return t, errors.Wrap(t.err, "trace function failed")
+		return t, fmt.Errorf("trace failed: %w", t.err)
 	}
 
-	// Call duration handlers
+	// Calculate all durations
 	t.setDNSDuration()
 	t.setConnDuration()
 	t.setTLSDuration()
@@ -192,13 +189,13 @@ func (h *HTTPTrace) trace() (*tracePoint, error) {
 	t.setFirstByteDuration()
 	t.setTotalDuration()
 
-	log.Debugf("Response Code: %v\n", t.statusCode)
-	log.Debugf("DNS Latency: %v\n", t.dnsDuration)
-	log.Debugf("Connection Latency: %v\n", t.connDuration)
-	log.Debugf("TLS Latency: %v\n", t.tlsDuration)
-	log.Debugf("GotConnection Latency: %v\n", t.gotConnDuration)
-	log.Debugf("TimeToFirstByte Latency: %v\n", t.firstByteDuration)
-	log.Debugf("Total Latency: %v\n", t.totalDuration)
+	log.Debugf("Response Code: %v", t.statusCode)
+	log.Debugf("DNS Latency: %v", t.dnsDuration)
+	log.Debugf("Connection Latency: %v", t.connDuration)
+	log.Debugf("TLS Latency: %v", t.tlsDuration)
+	log.Debugf("GotConnection Latency: %v", t.gotConnDuration)
+	log.Debugf("TimeToFirstByte Latency: %v", t.firstByteDuration)
+	log.Debugf("Total Latency: %v", t.totalDuration)
 
 	return t, nil
 }

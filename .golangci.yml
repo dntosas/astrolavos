@@ -3,6 +3,10 @@ linters:
   default: fast
   enable:
     - gosec
+    - gocritic
+    - misspell
+    - revive
+    - unconvert
   disable:
     - godox
     - lll

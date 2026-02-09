@@ -1,4 +1,4 @@
-// Main package inits all of Astrolavos components
+// Package main initializes and starts all Astrolavos components.
 package main
 
 import (
@@ -14,7 +14,7 @@ import (
 var (
 	// Version of the tool that gets written during build time.
 	Version = "dev"
-	// CommitHash of the code that get written during build time.
+	// CommitHash of the code that gets written during build time.
 	CommitHash     = ""
 	oneOffFlag     = flag.Bool("oneoff", false, "Run the probe measurements one time and exit.")
 	configPathFlag = flag.String("config-path", "/etc/astrolavos", "Specify the path of the config file.")
@@ -47,20 +47,11 @@ func main() {
 	log.Info("Shutting down Astrolavos...")
 }
 
-// initLogging initializes our logging behavior with structured formatting.
+// initLogging initializes structured JSON logging at the specified level.
 func initLogging(logLevel string) {
-	var l log.Level
-
-	switch logLevel {
-	case "DEBUG":
-		l = log.DebugLevel
-	case "WARNING", "WARN":
-		l = log.WarnLevel
-	case "INFO":
-		l = log.InfoLevel
-	case "ERROR":
-		l = log.ErrorLevel
-	default:
+	l, err := log.ParseLevel(logLevel)
+	if err != nil {
+		log.WithError(err).Warnf("Invalid log level %q, defaulting to INFO", logLevel)
 		l = log.InfoLevel
 	}
 
