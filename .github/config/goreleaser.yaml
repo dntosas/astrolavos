@@ -19,8 +19,8 @@ builds:
       - -mod=vendor
     ldflags:
       - -s -w
-      - -X {{ .ProjectName }}/cmd.Version={{ .Version }}
-      - -X {{ .ProjectName }}/cmd.CommitHash={{ .FullCommit }}
+      - -X main.Version={{ .Version }}
+      - -X main.CommitHash={{ .FullCommit }}
     main: .
 
 dockers:
