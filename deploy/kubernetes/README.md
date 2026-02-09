@@ -54,8 +54,8 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | deployAsDaemonSet | bool | `true` |  |
 | extraArgs | object | `{}` |  |
 | extraEnvVars.ASTROLAVOS_LOG_LEVEL | string | `"INFO"` |  |
-| extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s) |
-| extraVolumes | list | `[]` | Optionally specify extra list of additional volumes for the Redis&reg; master pod(s) |
+| extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Astrolavos container(s) |
+| extraVolumes | list | `[]` | Optionally specify extra list of additional volumes for the Astrolavos pod(s) |
 | fullnameOverride | string | `"astrolavos"` |  |
 | global.imagePullSecrets | list | `[]` |  |
 | global.imageRegistry | string | `""` |  |

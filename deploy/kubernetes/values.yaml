@@ -248,9 +248,9 @@ serviceMonitor:
   # -- Labels from the Kubernetes pod to be transferred to the created metrics
   podTargetLabels: []
 
-# -- Optionally specify extra list of additional volumes for the Redis&reg; master pod(s)
+# -- Optionally specify extra list of additional volumes for the Astrolavos pod(s)
 extraVolumes: []
-# -- Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s)
+# -- Optionally specify extra list of additional volumeMounts for the Astrolavos container(s)
 extraVolumeMounts: []
 
 ## Configure the ingress resource that allows you to access
