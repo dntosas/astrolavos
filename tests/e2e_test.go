@@ -34,7 +34,7 @@ func TestE2EAstrolavos(t *testing.T) {
 
 	// If the environment variable is empty, set a default value
 	if imageTag == "" {
-		imageTag = "v0.4.0"
+		imageTag = "v0.11.0"
 	}
 
 	fmt.Printf("Will test Astrolavos on version: %s\n", imageTag)
