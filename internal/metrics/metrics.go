@@ -21,7 +21,7 @@ var (
 			Help:    "Histogram of DNS resolution latency in seconds",
 			Buckets: timeBuckets,
 		},
-		[]string{"domain", "tag", "proberType"},
+		[]string{"domain", "tag", "prober_type"},
 	)
 
 	connLatencyHistogram = prometheus.NewHistogramVec(
@@ -30,7 +30,7 @@ var (
 			Help:    "Histogram of TCP connection latency in seconds",
 			Buckets: timeBuckets,
 		},
-		[]string{"domain", "tag", "proberType"},
+		[]string{"domain", "tag", "prober_type"},
 	)
 
 	tlsLatencyHistogram = prometheus.NewHistogramVec(
@@ -39,7 +39,7 @@ var (
 			Help:    "Histogram of TLS handshake latency in seconds",
 			Buckets: timeBuckets,
 		},
-		[]string{"domain", "tag", "proberType"},
+		[]string{"domain", "tag", "prober_type"},
 	)
 
 	gotConnLatencyHistogram = prometheus.NewHistogramVec(
@@ -48,7 +48,7 @@ var (
 			Help:    "Histogram of time to obtain a connection in seconds",
 			Buckets: timeBuckets,
 		},
-		[]string{"domain", "tag", "proberType"},
+		[]string{"domain", "tag", "prober_type"},
 	)
 
 	firstByteLatencyHistogram = prometheus.NewHistogramVec(
@@ -57,7 +57,7 @@ var (
 			Help:    "Histogram of time to first byte in seconds",
 			Buckets: timeBuckets,
 		},
-		[]string{"domain", "tag", "proberType"},
+		[]string{"domain", "tag", "prober_type"},
 	)
 
 	totalLatencyHistogram = prometheus.NewHistogramVec(
@@ -66,7 +66,7 @@ var (
 			Help:    "Histogram of total request latency in seconds",
 			Buckets: timeBuckets,
 		},
-		[]string{"domain", "tag", "proberType"},
+		[]string{"domain", "tag", "prober_type"},
 	)
 
 	totalRequestsCounter = prometheus.NewCounterVec(
@@ -74,7 +74,7 @@ var (
 			Name: "astrolavos_requests_total",
 			Help: "Total number of probe requests made by Astrolavos",
 		},
-		[]string{"domain", "tag", "status_code", "proberType"},
+		[]string{"domain", "tag", "status_code", "prober_type"},
 	)
 
 	totalErrorsCounter = prometheus.NewCounterVec(
@@ -82,7 +82,7 @@ var (
 			Name: "astrolavos_errors_total",
 			Help: "Total number of probe errors encountered by Astrolavos",
 		},
-		[]string{"domain", "tag", "error", "proberType"},
+		[]string{"domain", "tag", "error", "prober_type"},
 	)
 )
 
@@ -167,6 +167,26 @@ func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType, tag string, e
 	log.Debug("Updated metric for total errors counter")
 }
 
+// errorPattern maps an error message substring to a known error category.
+type errorPattern struct {
+	substr   string
+	category string
+}
+
+// errorPatterns defines the mapping from lowercase error substrings to categories.
+// Order matters: first match wins.
+var errorPatterns = []errorPattern{
+	{"no such host", "dns_error"},
+	{"dns", "dns_error"},
+	{"connection refused", "connection_refused"},
+	{"connection reset", "connection_reset"},
+	{"timeout", "timeout"},
+	{"tls", "tls_error"},
+	{"x509", "tls_error"},
+	{"certificate", "tls_error"},
+	{"eof", "eof"},
+}
+
 // CategorizeError maps an error to a known category string for use as a Prometheus label.
 // This prevents high cardinality from raw error messages.
 func CategorizeError(err error) string {
@@ -174,28 +194,25 @@ func CategorizeError(err error) string {
 		return "unknown"
 	}
 
+	// Check sentinel errors first via errors.Is for proper unwrapping
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "timeout"
+	}
+
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
+	}
+
+	// Fall back to substring matching on the lowercased error message
 	errStr := strings.ToLower(err.Error())
 
-	switch {
-	case errors.Is(err, context.DeadlineExceeded):
-		return "timeout"
-	case errors.Is(err, context.Canceled):
-		return "canceled"
-	case strings.Contains(errStr, "no such host") || strings.Contains(errStr, "dns"):
-		return "dns_error"
-	case strings.Contains(errStr, "connection refused"):
-		return "connection_refused"
-	case strings.Contains(errStr, "connection reset"):
-		return "connection_reset"
-	case strings.Contains(errStr, "timeout"):
-		return "timeout"
-	case strings.Contains(errStr, "tls") || strings.Contains(errStr, "x509") || strings.Contains(errStr, "certificate"):
-		return "tls_error"
-	case strings.Contains(errStr, "eof"):
-		return "eof"
-	default:
-		return "unknown"
+	for _, p := range errorPatterns {
+		if strings.Contains(errStr, p.substr) {
+			return p.category
+		}
 	}
+
+	return "unknown"
 }
 
 // PrometheusPush sends the collected Prometheus metrics to the push gateway.

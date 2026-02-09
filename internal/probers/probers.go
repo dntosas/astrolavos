@@ -122,7 +122,8 @@ func (p *ProberConfig) retryWithBackoff(ctx context.Context, fn func() error) er
 
 		// Don't sleep on the last attempt
 		if attempt < p.retries-1 {
-			backoff := time.Duration(100*(1<<uint(attempt))) * time.Millisecond
+			shift := min(attempt, 30)
+			backoff := time.Duration(100*(1<<uint(shift))) * time.Millisecond //nolint:gosec // shift is bounds-checked to [0, 30]
 			log.Debugf("Attempt %d/%d failed for %s, retrying after %v: %v",
 				attempt+1, p.retries, p.endpoint, backoff, lastErr)
 

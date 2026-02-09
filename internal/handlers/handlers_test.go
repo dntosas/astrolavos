@@ -1,16 +1,18 @@
-package handlers
+package handlers_test
 
 import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/dntosas/astrolavos/internal/handlers"
 )
 
 func TestOKHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/live", nil)
 	w := httptest.NewRecorder()
 
-	OKHandler(w, req)
+	handlers.OKHandler(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
@@ -25,7 +27,7 @@ func TestLatencyHandler_NoPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency", nil)
 	w := httptest.NewRecorder()
 
-	LatencyHandler(w, req)
+	handlers.LatencyHandler(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
@@ -36,7 +38,7 @@ func TestLatencyHandler_ValidPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=100", nil)
 	w := httptest.NewRecorder()
 
-	LatencyHandler(w, req)
+	handlers.LatencyHandler(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
@@ -51,7 +53,7 @@ func TestLatencyHandler_InvalidPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=abc", nil)
 	w := httptest.NewRecorder()
 
-	LatencyHandler(w, req)
+	handlers.LatencyHandler(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
@@ -62,7 +64,7 @@ func TestLatencyHandler_ExceedsMaxPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=99999999", nil)
 	w := httptest.NewRecorder()
 
-	LatencyHandler(w, req)
+	handlers.LatencyHandler(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
@@ -77,7 +79,7 @@ func TestLatencyHandler_ZeroPayload(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/latency?payloadSize=0", nil)
 	w := httptest.NewRecorder()
 
-	LatencyHandler(w, req)
+	handlers.LatencyHandler(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)

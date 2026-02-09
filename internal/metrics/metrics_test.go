@@ -1,12 +1,15 @@
-package metrics
+package metrics_test
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"testing"
+
+	"github.com/dntosas/astrolavos/internal/metrics"
 )
 
+//nolint:funlen // table-driven tests are naturally long
 func TestCategorizeError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -87,7 +90,7 @@ func TestCategorizeError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CategorizeError(tt.err)
+			result := metrics.CategorizeError(tt.err)
 			if result != tt.expected {
 				t.Errorf("CategorizeError(%v) = %q, want %q", tt.err, result, tt.expected)
 			}
