@@ -18,7 +18,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1126,
+  "id": null,
   "links": [],
   "panels": [
     {
@@ -116,9 +116,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_dns_latency_seconds_bucket{tag=~\"$tag\", infra_cluster=~\"$cluster\", exported_endpoint=~\"$endpoint\"}[5m])) by (le, tag, exported_endpoint))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_dns_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
           "instant": false,
-          "legendFormat": "{{ tag }} - {{ exported_endpoint }} - {{ percentile }}",
+          "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
           "refId": "A"
         }
@@ -221,9 +221,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_conn_latency_seconds_bucket{tag=~\"$tag\", infra_cluster=~\"$cluster\", exported_endpoint=~\"$endpoint\"}[5m])) by (le, tag, exported_endpoint))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_conn_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
           "instant": false,
-          "legendFormat": "{{ tag }} - {{ exported_endpoint }} - {{ percentile }}",
+          "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
           "refId": "A"
         }
@@ -326,9 +326,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_gotconn_latency_seconds_bucket{tag=~\"$tag\", infra_cluster=~\"$cluster\", exported_endpoint=~\"$endpoint\"}[5m])) by (le, tag, exported_endpoint))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_gotconn_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
           "instant": false,
-          "legendFormat": "{{ tag }} - {{ exported_endpoint }} - {{ percentile }}",
+          "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
           "refId": "A"
         }
@@ -431,9 +431,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_tls_latency_seconds_bucket{tag=~\"$tag\", infra_cluster=~\"$cluster\", exported_endpoint=~\"$endpoint\"}[5m])) by (le, tag, exported_endpoint))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_tls_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
           "instant": false,
-          "legendFormat": "{{ tag }} - {{ exported_endpoint }} - {{ percentile }}",
+          "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
           "refId": "A"
         }
@@ -536,9 +536,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_firstbyte_latency_seconds_bucket{tag=~\"$tag\", infra_cluster=~\"$cluster\", exported_endpoint=~\"$endpoint\"}[5m])) by (le, tag, exported_endpoint))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_firstbyte_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
           "instant": false,
-          "legendFormat": "{{ tag }} - {{ exported_endpoint }} - {{ percentile }}",
+          "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
           "refId": "A"
         }
@@ -641,9 +641,9 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_total_latency_seconds_bucket{tag=~\"$tag\", infra_cluster=~\"$cluster\", exported_endpoint=~\"$endpoint\"}[5m])) by (le, tag, exported_endpoint))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_total_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
           "instant": false,
-          "legendFormat": "{{ tag }} - {{ exported_endpoint }} - {{ percentile }}",
+          "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
           "refId": "A"
         }
@@ -746,7 +746,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(astrolavos_errors_total{tag=~\"$tag\", infra_cluster=~\"$cluster\", exported_endpoint=~\"$endpoint\"}[5m]))",
+          "expr": "sum(rate(astrolavos_errors_total{tag=~\"$tag\", domain=~\"$endpoint\"}[5m]))",
           "instant": false,
           "legendFormat": "{{ error }}",
           "range": true,
@@ -764,46 +764,18 @@
   "templating": {
     "list": [
       {
-        "current": {
-          "text": "prometheus-victoriametrics",
-          "value": "pUDT-vM4k"
-        },
+        "current": {},
         "includeAll": false,
         "label": "Prometheus Data Source",
         "name": "PROMETHEUS_DS",
         "options": [],
         "query": "prometheus",
         "refresh": 1,
-        "regex": "/prometheus-victoriametrics/",
+        "regex": "",
         "type": "datasource"
       },
       {
-        "current": {
-          "text": "k8s-bd-prod-1",
-          "value": "k8s-bd-prod-1"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${PROMETHEUS_DS}"
-        },
-        "definition": "label_values(infra_cluster)",
-        "includeAll": false,
-        "label": "Cluster",
-        "name": "cluster",
-        "options": [],
-        "query": {
-          "query": "label_values(infra_cluster)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "/k8s/",
-        "type": "query"
-      },
-      {
-        "current": {
-          "text": "internal",
-          "value": "internal"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "${PROMETHEUS_DS}"
@@ -863,7 +835,7 @@
           "type": "prometheus",
           "uid": "${PROMETHEUS_DS}"
         },
-        "definition": "label_values(astrolavos_total_latency_seconds_count{infra_cluster=\"$cluster\"},exported_endpoint)",
+        "definition": "label_values(astrolavos_total_latency_seconds_count{tag=~\"$tag\"},domain)",
         "includeAll": true,
         "label": "Endpoint",
         "multi": true,
@@ -871,7 +843,7 @@
         "options": [],
         "query": {
           "qryType": 1,
-          "query": "label_values(astrolavos_total_latency_seconds_count{infra_cluster=\"$cluster\"},exported_endpoint)",
+          "query": "label_values(astrolavos_total_latency_seconds_count{tag=~\"$tag\"},domain)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
@@ -888,5 +860,5 @@
   "timezone": "",
   "title": "Astrolavos Network Metrics",
   "uid": "astrolavos-network-metrics",
-  "version": 8
+  "version": 1
 }
