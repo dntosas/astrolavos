@@ -227,6 +227,20 @@ lifecycleHooks:
     exec:
       command: ["/bin/sh", "-c", "sleep 15"]
 
+## Grafana Dashboard
+## ref: https://github.com/grafana/helm-charts/tree/main/charts/grafana#sidecar-for-dashboards
+grafanaDashboard:
+  # -- Deploy Grafana dashboard as a ConfigMap for sidecar autodiscovery
+  enabled: false
+  # -- Label used by Grafana sidecar to discover dashboard ConfigMaps
+  sidecarLabel: grafana_dashboard
+  # -- Value for the sidecar discovery label
+  sidecarLabelValue: "1"
+  # -- Grafana folder to place the dashboard in (annotation: grafana_folder)
+  folder: ""
+  # -- Additional annotations for the dashboard ConfigMap
+  annotations: {}
+
 # Prometheus Service Monitor
 serviceMonitor:
   # -- Create ServiceMonitor resource(s) for scraping metrics using PrometheusOperator

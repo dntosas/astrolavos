@@ -1,0 +1,27 @@
+{{- if .Values.grafanaDashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-grafana-dashboard" (include "common.names.fullname" .) }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    {{ .Values.grafanaDashboard.sidecarLabel }}: {{ .Values.grafanaDashboard.sidecarLabelValue | quote }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if or .Values.grafanaDashboard.folder .Values.grafanaDashboard.annotations .Values.commonAnnotations }}
+  annotations:
+    {{- if .Values.grafanaDashboard.folder }}
+    grafana_folder: {{ .Values.grafanaDashboard.folder | quote }}
+    {{- end }}
+    {{- if .Values.grafanaDashboard.annotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.grafanaDashboard.annotations "context" $ ) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.commonAnnotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- end }}
+data:
+  astrolavos-dashboard.json: |-
+{{- .Files.Get "dashboard/grafana.json" | nindent 4 }}
+{{- end }}
