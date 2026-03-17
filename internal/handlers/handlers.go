@@ -15,7 +15,8 @@ import (
 const DefaultMaxPayloadSize = 10485760
 
 // OKHandler responds with HTTP 200 and an empty body.
-// Used for liveness and readiness probes.
+//
+// Deprecated: Use health.LiveHandler / health.ReadyHandler for state-aware probes.
 func OKHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Length", "0")
 	w.WriteHeader(http.StatusOK)
