@@ -246,11 +246,44 @@ lifecycleHooks:
       path: /prestop
       port: http
 
+## Datadog Dashboard
+## ref: https://docs.datadoghq.com/containers/datadog_operator/crd_dashboard/
+datadogDashboard:
+  # -- Deploy Datadog dashboard as a DatadogDashboard CRD (requires Datadog Operator v0.6+)
+  enabled: false
+  # -- Dashboard title (supports tpl rendering, e.g. "{{ include \"common.names.fullname\" . }} Network Metrics")
+  title: "Astrolavos Network Metrics"
+  # -- Extra tags to add to the dashboard (in addition to app:astrolavos)
+  # e.g. ["team:platform", "env:production"]
+  extraTags: []
+  # -- Additional template variables for the dashboard
+  # e.g.
+  # extraTemplateVariables:
+  #   - name: cluster
+  #     prefix: kube_cluster_name
+  #     defaults:
+  #       - "*"
+  extraTemplateVariables:
+    - name: cluster
+      prefix: kube_cluster_name
+      defaults:
+        - "*"
+    - name: region
+      prefix: region
+      defaults:
+        - "*"
+  # -- Additional annotations for the DatadogDashboard resource
+  annotations: {}
+  # -- Override the namespace for the DatadogDashboard resource (defaults to release namespace)
+  namespace: ""
+
 ## Grafana Dashboard
 ## ref: https://github.com/grafana/helm-charts/tree/main/charts/grafana#sidecar-for-dashboards
 grafanaDashboard:
   # -- Deploy Grafana dashboard as a ConfigMap for sidecar autodiscovery
   enabled: false
+  # -- Override the namespace for the Grafana dashboard ConfigMap (defaults to release namespace)
+  namespace: ""
   # -- Label used by Grafana sidecar to discover dashboard ConfigMaps
   sidecarLabel: grafana_dashboard
   # -- Value for the sidecar discovery label

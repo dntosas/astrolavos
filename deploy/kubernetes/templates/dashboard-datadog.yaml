@@ -1,0 +1,42 @@
+{{- if .Values.datadogDashboard.enabled }}
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogDashboard
+metadata:
+  name: {{ printf "%s-network-metrics" (include "common.names.fullname" .) }}
+  namespace: {{ .Values.datadogDashboard.namespace | default (include "common.names.namespace" .) | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonLabels "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- if or .Values.datadogDashboard.annotations .Values.commonAnnotations }}
+  annotations:
+    {{- if .Values.datadogDashboard.annotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.datadogDashboard.annotations "context" $ ) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.commonAnnotations }}
+    {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  title: {{ include "common.tplvalues.render" ( dict "value" .Values.datadogDashboard.title "context" $ ) }}
+  layoutType: ordered
+  tags:
+    - "app:astrolavos"
+    {{- range .Values.datadogDashboard.extraTags }}
+    - {{ . | quote }}
+    {{- end }}
+  templateVariables:
+    - name: tag
+      prefix: tag
+      defaults:
+        - "*"
+    - name: endpoint
+      prefix: domain
+      defaults:
+        - "*"
+    {{- range .Values.datadogDashboard.extraTemplateVariables }}
+    - {{- toYaml . | nindent 6 }}
+    {{- end }}
+  widgets: |-
+{{- .Files.Get "dashboard/datadog-widgets.json" | nindent 4 }}
+{{- end }}

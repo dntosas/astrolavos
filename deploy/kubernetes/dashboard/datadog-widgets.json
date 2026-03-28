@@ -1,0 +1,212 @@
+[
+  {
+    "definition": {
+      "title": "DNS",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": ["avg", "min", "max", "value"],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [{ "formula": "query1" }],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "p99:astrolavos_dns_latency_seconds{$tag,$endpoint} by {tag,domain}"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "dog_classic",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": { "include_zero": true, "scale": "linear" }
+    },
+    "layout": { "x": 0, "y": 0, "width": 4, "height": 4 }
+  },
+  {
+    "definition": {
+      "title": "Connection",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": ["avg", "min", "max", "value"],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [{ "formula": "query1" }],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "p99:astrolavos_conn_latency_seconds{$tag,$endpoint} by {tag,domain}"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "dog_classic",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": { "include_zero": true, "scale": "linear" }
+    },
+    "layout": { "x": 4, "y": 0, "width": 4, "height": 4 }
+  },
+  {
+    "definition": {
+      "title": "Got Connection",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": ["avg", "min", "max", "value"],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [{ "formula": "query1" }],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "p99:astrolavos_gotconn_latency_seconds{$tag,$endpoint} by {tag,domain}"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "dog_classic",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": { "include_zero": true, "scale": "linear" }
+    },
+    "layout": { "x": 8, "y": 0, "width": 4, "height": 4 }
+  },
+  {
+    "definition": {
+      "title": "TLS",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": ["avg", "min", "max", "value"],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [{ "formula": "query1" }],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "p99:astrolavos_tls_latency_seconds{$tag,$endpoint} by {tag,domain}"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "dog_classic",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": { "include_zero": true, "scale": "linear" }
+    },
+    "layout": { "x": 0, "y": 4, "width": 4, "height": 4 }
+  },
+  {
+    "definition": {
+      "title": "First Byte",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": ["avg", "min", "max", "value"],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [{ "formula": "query1" }],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "p99:astrolavos_firstbyte_latency_seconds{$tag,$endpoint} by {tag,domain}"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "dog_classic",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": { "include_zero": true, "scale": "linear" }
+    },
+    "layout": { "x": 4, "y": 4, "width": 4, "height": 4 }
+  },
+  {
+    "definition": {
+      "title": "Total",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": ["avg", "min", "max", "value"],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [{ "formula": "query1" }],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "p99:astrolavos_total_latency_seconds{$tag,$endpoint} by {tag,domain}"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "dog_classic",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": { "include_zero": true, "scale": "linear" }
+    },
+    "layout": { "x": 8, "y": 4, "width": 4, "height": 4 }
+  },
+  {
+    "definition": {
+      "title": "Errors",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": ["avg", "min", "max", "value"],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [{ "formula": "query1" }],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "sum:astrolavos_errors_total{$tag,$endpoint} by {error}.as_rate()"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "warm",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": { "include_zero": true, "scale": "linear" }
+    },
+    "layout": { "x": 0, "y": 8, "width": 4, "height": 4 }
+  }
+]
