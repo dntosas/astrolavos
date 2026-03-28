@@ -9,6 +9,37 @@ import (
 	"github.com/dntosas/astrolavos/internal/metrics"
 )
 
+func TestBucketStatusCode(t *testing.T) {
+	tests := []struct {
+		code     string
+		expected string
+	}{
+		{"200", "2xx"},
+		{"201", "2xx"},
+		{"301", "3xx"},
+		{"302", "3xx"},
+		{"400", "4xx"},
+		{"404", "4xx"},
+		{"500", "5xx"},
+		{"503", "5xx"},
+		{"100", "1xx"},
+		{"", ""},
+		{"0", "0"},
+		{"99", "99"},
+		{"600", "600"},
+		{"abc", "abc"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.code, func(t *testing.T) {
+			result := metrics.BucketStatusCode(tt.code)
+			if result != tt.expected {
+				t.Errorf("BucketStatusCode(%q) = %q, want %q", tt.code, result, tt.expected)
+			}
+		})
+	}
+}
+
 //nolint:funlen // table-driven tests are naturally long
 func TestCategorizeError(t *testing.T) {
 	tests := []struct {

@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	// timeBuckets is based on Prometheus client_golang prometheus.DefBuckets.
-	timeBuckets = prometheus.ExponentialBuckets(0.00025, 2, 16) // from 0.25ms to 8 seconds
+	// timeBuckets covers the practical latency range (1ms – 5s) with fewer
+	// buckets to limit the number of time series exposed to scrapers.
+	timeBuckets = []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}
 
 	dnsLatencyHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -154,9 +155,20 @@ func (p *PrometheusClient) UpdateTotalHistogram(domain, proberType, tag string, 
 }
 
 // UpdateRequestsCounter increments the total requests counter.
+// The status code is bucketed (e.g. "2xx") to limit label cardinality.
 func (p *PrometheusClient) UpdateRequestsCounter(domain, proberType, tag, statusCode string) {
-	totalRequestsCounter.WithLabelValues(domain, tag, statusCode, proberType).Inc()
+	totalRequestsCounter.WithLabelValues(domain, tag, BucketStatusCode(statusCode), proberType).Inc()
 	log.Debug("Updated metric for total requests counter")
+}
+
+// BucketStatusCode maps an HTTP status code string to its class bucket
+// (e.g. "200" -> "2xx"). Unknown or empty codes are returned as-is.
+func BucketStatusCode(code string) string {
+	if len(code) == 3 && code[0] >= '1' && code[0] <= '5' {
+		return string(code[0]) + "xx"
+	}
+
+	return code
 }
 
 // UpdateErrorsCounter increments the total errors counter with a categorized error type.
