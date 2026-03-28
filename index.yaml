@@ -2,6 +2,31 @@ apiVersion: v1
 entries:
   astrolavos:
   - apiVersion: v2
+    created: "2026-03-28T09:59:35.065685044Z"
+    dependencies:
+    - name: common
+      repository: https://charts.bitnami.com/bitnami
+      tags:
+      - bitnami-common
+      version: 2.24.0
+    description: A Helm Chart for deploying Astrolavos Latency Measuring Tool
+    digest: 0390b1bc05fb14633e3a46e0770d879c29a6541ccc40de06ea318fe921afe938
+    home: https://github.com/dntosas/astrolavos
+    keywords:
+    - astrolavos
+    - latency
+    - httptrace
+    - kubernetes
+    maintainers:
+    - name: Jim Ntosas
+    - name: Andreas Strikos
+    name: astrolavos
+    sources:
+    - https://github.com/dntosas/astrolavos
+    urls:
+    - https://github.com/dntosas/astrolavos/releases/download/astrolavos-0.17.0/astrolavos-0.17.0.tgz
+    version: 0.17.0
+  - apiVersion: v2
     appVersion: 0.16.0
     created: "2026-03-28T09:54:35.02939276Z"
     dependencies:
@@ -552,4 +577,4 @@ entries:
     urls:
     - https://github.com/dntosas/astrolavos/releases/download/astrolavos-0.1.0/astrolavos-0.1.0.tgz
     version: 0.1.0
-generated: "2026-03-28T09:54:35.029569278Z"
+generated: "2026-03-28T09:59:35.065867743Z"
