@@ -1,5 +1,5 @@
 # Build stage: only used for CA certificates
-FROM alpine:3.22 AS builder
+FROM alpine:3.23 AS builder
 
 # Runtime stage: minimal distroless image
 # Note: The binary is built externally (via Makefile or GoReleaser)
