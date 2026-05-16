@@ -1,6 +1,6 @@
 # astrolavos
 
-![Version: 0.11.0](https://img.shields.io/badge/Version-0.11.0-informational?style=flat-square)
+![Version: 0.18.0](https://img.shields.io/badge/Version-0.18.0-informational?style=flat-square)
 
 A Helm Chart for deploying Astrolavos Latency Measuring Tool
 
@@ -51,20 +51,32 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | containerSecurityContext.runAsNonRoot | bool | `true` |  |
 | containerSecurityContext.runAsUser | int | `65532` |  |
 | containerSecurityContext.seccompProfile.type | string | `"RuntimeDefault"` |  |
+| datadogDashboard.annotations | object | `{}` | Additional annotations for the DatadogDashboard resource |
+| datadogDashboard.enabled | bool | `false` | Deploy Datadog dashboard as a DatadogDashboard CRD (requires Datadog Operator v0.6+) |
+| datadogDashboard.extraTags | list | `[]` | Extra tags to add to the dashboard (in addition to app:astrolavos) e.g. ["team:platform", "env:production"] |
+| datadogDashboard.extraTemplateVariables | list | `[{"defaults":["*"],"name":"cluster","prefix":"kube_cluster_name"},{"defaults":["*"],"name":"region","prefix":"region"}]` | Additional template variables for the dashboard e.g. extraTemplateVariables:   - name: cluster     prefix: kube_cluster_name     defaults:       - "*" |
+| datadogDashboard.namespace | string | `""` | Override the namespace for the DatadogDashboard resource (defaults to release namespace) |
+| datadogDashboard.title | string | `"Astrolavos Network Metrics"` | Dashboard title (supports tpl rendering, e.g. "{{ include \"common.names.fullname\" . }} Network Metrics") |
 | deployAsDaemonSet | bool | `true` |  |
 | extraArgs | object | `{}` |  |
 | extraEnvVars.ASTROLAVOS_LOG_LEVEL | string | `"INFO"` |  |
-| extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Astrolavos container(s) |
-| extraVolumes | list | `[]` | Optionally specify extra list of additional volumes for the Astrolavos pod(s) |
+| extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s) |
+| extraVolumes | list | `[]` | Optionally specify extra list of additional volumes for the Redis&reg; master pod(s) |
 | fullnameOverride | string | `"astrolavos"` |  |
 | global.imagePullSecrets | list | `[]` |  |
 | global.imageRegistry | string | `""` |  |
+| grafanaDashboard.annotations | object | `{}` | Additional annotations for the dashboard ConfigMap |
+| grafanaDashboard.enabled | bool | `false` | Deploy Grafana dashboard as a ConfigMap for sidecar autodiscovery |
+| grafanaDashboard.folder | string | `""` | Grafana folder to place the dashboard in (annotation: grafana_folder) |
+| grafanaDashboard.namespace | string | `""` | Override the namespace for the Grafana dashboard ConfigMap (defaults to release namespace) |
+| grafanaDashboard.sidecarLabel | string | `"grafana_dashboard"` | Label used by Grafana sidecar to discover dashboard ConfigMaps |
+| grafanaDashboard.sidecarLabelValue | string | `"1"` | Value for the sidecar discovery label |
 | hostNetwork | bool | `false` |  |
 | image.pullPolicy | string | `"Always"` |  |
 | image.pullSecrets | object | `{}` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"dntosas/astrolavos"` |  |
-| image.tag | string | `"v0.11.0"` |  |
+| image.tag | string | `"v0.18.0"` |  |
 | ingress.annotations | object | `{}` |  |
 | ingress.apiVersion | string | `""` |  |
 | ingress.enabled | bool | `false` |  |
@@ -80,12 +92,11 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | ingress.selfSigned | bool | `false` |  |
 | ingress.tls | bool | `false` |  |
 | initContainers | list | `[]` |  |
-| lifecycleHooks.preStop.exec.command[0] | string | `"/bin/sh"` |  |
-| lifecycleHooks.preStop.exec.command[1] | string | `"-c"` |  |
-| lifecycleHooks.preStop.exec.command[2] | string | `"sleep 15"` |  |
+| lifecycleHooks.preStop.httpGet.path | string | `"/prestop"` |  |
+| lifecycleHooks.preStop.httpGet.port | string | `"http"` |  |
 | livenessProbe.enabled | bool | `true` |  |
 | livenessProbe.failureThreshold | int | `3` |  |
-| livenessProbe.initialDelaySeconds | int | `1` |  |
+| livenessProbe.initialDelaySeconds | int | `0` |  |
 | livenessProbe.periodSeconds | int | `10` |  |
 | livenessProbe.successThreshold | int | `1` |  |
 | livenessProbe.timeoutSeconds | int | `5` |  |
@@ -106,11 +117,11 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | podSecurityContext.fsGroup | int | `1001` |  |
 | priorityClassName | string | `""` |  |
 | readinessProbe.enabled | bool | `true` |  |
-| readinessProbe.failureThreshold | int | `3` |  |
-| readinessProbe.initialDelaySeconds | int | `1` |  |
-| readinessProbe.periodSeconds | int | `10` |  |
+| readinessProbe.failureThreshold | int | `1` |  |
+| readinessProbe.initialDelaySeconds | int | `0` |  |
+| readinessProbe.periodSeconds | int | `5` |  |
 | readinessProbe.successThreshold | int | `1` |  |
-| readinessProbe.timeoutSeconds | int | `5` |  |
+| readinessProbe.timeoutSeconds | int | `3` |  |
 | replicaCount | int | `1` |  |
 | resources.limits.cpu | string | `"100m"` |  |
 | resources.limits.memory | string | `"256Mi"` |  |
@@ -128,7 +139,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | service.ports.http | int | `3000` |  |
 | service.sessionAffinity | string | `"None"` |  |
 | service.sessionAffinityConfig | object | `{}` |  |
-| service.trafficDistribution | string | `""` | Service spec `trafficDistribution`. Leave empty to omit the field. |
+| service.trafficDistribution | string | `"PreferSameZone"` | Service spec `trafficDistribution`. Leave empty to omit the field. |
 | service.type | string | `"ClusterIP"` |  |
 | serviceAccount.annotations | object | `{}` |  |
 | serviceAccount.automountServiceAccountToken | bool | `false` |  |
@@ -143,10 +154,16 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | serviceMonitor.podTargetLabels | list | `[]` | Labels from the Kubernetes pod to be transferred to the created metrics |
 | serviceMonitor.relabellings | list | `[]` | Metrics RelabelConfigs to apply to samples before scraping. |
 | serviceMonitor.scrapeTimeout | string | `""` | The timeout after which the scrape is ended |
-| terminationGracePeriodSeconds | int | `30` |  |
+| startupProbe.enabled | bool | `true` |  |
+| startupProbe.failureThreshold | int | `15` |  |
+| startupProbe.initialDelaySeconds | int | `5` |  |
+| startupProbe.periodSeconds | int | `2` |  |
+| startupProbe.successThreshold | int | `1` |  |
+| startupProbe.timeoutSeconds | int | `3` |  |
+| terminationGracePeriodSeconds | int | `40` |  |
 | tolerations | list | `[]` |  |
 | topologySpreadConstraints | list | `[]` |  |
-| updateStrategy.rollingUpdate.maxUnavailable | int | `1` |  |
+| updateStrategy.rollingUpdate.maxUnavailable | string | `"25%"` |  |
 | updateStrategy.type | string | `"RollingUpdate"` |  |
 
 ----------------------------------------------
