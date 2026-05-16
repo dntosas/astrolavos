@@ -73,7 +73,7 @@ config:
 image:
   registry: ghcr.io
   repository: dntosas/astrolavos
-  tag: v0.17.0
+  tag: v0.18.0
   pullPolicy: Always
   pullSecrets: {}
 
@@ -95,6 +95,22 @@ service:
   loadBalancerSourceRanges: []
   sessionAffinity: None
   sessionAffinityConfig: {}
+  ## Service traffic distribution preference. Empty by default for backward
+  ## compatibility; only rendered into the Service spec when set.
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#traffic-distribution
+  ##
+  ## Particularly useful when astrolavos runs as a DaemonSet and probes itself
+  ## via the Service VIP (e.g. `astrolavos/latency`): `PreferSameZone` keeps
+  ## the probe in-AZ when a same-AZ endpoint exists and falls back gracefully
+  ## otherwise.
+  ##
+  ## Valid values (Kubernetes >= 1.31, beta; GA in 1.33):
+  ##   ""              Do not set the field (default).
+  ##   PreferClose     Prefer endpoints in the same topology (zone) as the client.
+  ##   PreferSameZone  Alias of PreferClose, available since 1.33.
+  ##   PreferSameNode  Prefer endpoints on the same node as the client (1.33+).
+  # -- Service spec `trafficDistribution`. Leave empty to omit the field.
+  trafficDistribution: "PreferSameZone"
 
 containerPorts:
   http: 3000
