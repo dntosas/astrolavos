@@ -128,6 +128,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | service.ports.http | int | `3000` |  |
 | service.sessionAffinity | string | `"None"` |  |
 | service.sessionAffinityConfig | object | `{}` |  |
+| service.trafficDistribution | string | `""` | Service spec `trafficDistribution`. Leave empty to omit the field. |
 | service.type | string | `"ClusterIP"` |  |
 | serviceAccount.annotations | object | `{}` |  |
 | serviceAccount.automountServiceAccountToken | bool | `false` |  |

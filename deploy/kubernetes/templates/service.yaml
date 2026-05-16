@@ -25,6 +25,9 @@ spec:
   {{- if (semverCompare ">=1.22-0" (include "common.capabilities.kubeVersion" .)) }}
   internalTrafficPolicy: {{ .Values.service.internalTrafficPolicy }}
   {{- end }}
+  {{- if .Values.service.trafficDistribution }}
+  trafficDistribution: {{ .Values.service.trafficDistribution }}
+  {{- end }}
   {{- if and (eq .Values.service.type "LoadBalancer") (not (empty .Values.service.loadBalancerIP)) }}
   loadBalancerIP: {{ .Values.service.loadBalancerIP }}
   {{- end }}
