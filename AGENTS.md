@@ -30,7 +30,7 @@ examples/                       # Example config.yaml
 | Config        | YAML + Viper (env prefix `ASTROLAVOS_`)                      |
 | Logging       | logrus (JSON structured)                                      |
 | Metrics       | prometheus/client_golang (scrape + push gateway)              |
-| Linting       | golangci-lint v2.4.0 (gosec, gocritic, misspell, revive)     |
+| Linting       | golangci-lint v2.12.2 (gosec, gocritic, misspell, revive)    |
 | Container     | Distroless static (`gcr.io/distroless/static:nonroot`)        |
 | Release       | GoReleaser (linux/amd64 + arm64, GHCR multi-arch manifests)  |
 | Helm          | Chart v0.12.0, Bitnami common dependency                      |
