@@ -26,7 +26,7 @@ examples/                       # Example config.yaml
 
 | Component     | Technology                                                    |
 |---------------|---------------------------------------------------------------|
-| Language      | Go 1.25, vendored dependencies (`go mod vendor`)             |
+| Language      | Go 1.26, vendored dependencies (`go mod vendor`)             |
 | Config        | YAML + Viper (env prefix `ASTROLAVOS_`)                      |
 | Logging       | logrus (JSON structured)                                      |
 | Metrics       | prometheus/client_golang (scrape + push gateway)              |

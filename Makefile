@@ -4,7 +4,7 @@ PROJECT = "astrolavos"
 USER = $(shell id -u)
 GROUP = $(shell id -g)
 GOBUILD_OPTS = -ldflags="-s -w -X main.Version=${VERSION} -X main.CommitHash=${COMMIT}"
-GO_IMAGE = "golang:1.25-alpine"
+GO_IMAGE = "golang:1.26-alpine"
 GO_IMAGE_CI = "golangci/golangci-lint:v2.4.0"
 DISTROLESS_IMAGE = "gcr.io/distroless/static:nonroot"
 IMAGE_TAG_BASE ?= "ghcr.io/dntosas/${PROJECT}"
