@@ -39,7 +39,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: v2.4.0
+          version: v2.12.2
           args: --timeout 5m --modules-download-mode=vendor
 
       - name: Run go test
