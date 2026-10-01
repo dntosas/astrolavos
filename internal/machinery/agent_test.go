@@ -25,5 +25,5 @@ func TestNewAstrolavos(_ *testing.T) {
 		},
 	}
 
-	_ = machinery.NewAstrolavos(3000, endpoints, "localhost", "dev", 0, true)
+	_ = machinery.NewAstrolavos(3000, endpoints, "localhost", "dev", 0, true, nil)
 }

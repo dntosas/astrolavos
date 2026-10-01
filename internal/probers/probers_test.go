@@ -13,7 +13,7 @@ import (
 )
 
 // testPromC is a shared Prometheus client to avoid double-registration panics.
-var testPromC = metrics.NewPrometheusClient(true, "localhost")
+var testPromC = metrics.NewPrometheusClient(true, "localhost", nil)
 
 // newTestWG returns a WaitGroup with 1 added, matching what the agent does.
 func newTestWG() *sync.WaitGroup {

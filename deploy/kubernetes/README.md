@@ -1,6 +1,6 @@
 # astrolavos
 
-![Version: 0.18.0](https://img.shields.io/badge/Version-0.18.0-informational?style=flat-square)
+![Version: 0.19.0](https://img.shields.io/badge/Version-0.19.0-informational?style=flat-square)
 
 A Helm Chart for deploying Astrolavos Latency Measuring Tool
 
@@ -43,6 +43,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | config.endpoints[0].prober | string | `"httpTrace"` |  |
 | config.endpoints[0].retries | int | `1` |  |
 | config.endpoints[0].tag | string | `"example"` |  |
+| config.metrics.histogramBuckets | list | `[0.001,0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5]` | Latency histogram bucket upper bounds in seconds, shared by all `astrolavos_*_latency_seconds` histograms. Must be strictly increasing. Overridable at runtime via the `ASTROLAVOS_HISTOGRAM_BUCKETS` env var (comma-separated). |
 | containerPorts.http | int | `3000` |  |
 | containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | containerSecurityContext.enabled | bool | `true` |  |
@@ -76,7 +77,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | image.pullSecrets | object | `{}` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"dntosas/astrolavos"` |  |
-| image.tag | string | `"v0.18.0"` |  |
+| image.tag | string | `"v0.19.0"` |  |
 | ingress.annotations | object | `{}` |  |
 | ingress.apiVersion | string | `""` |  |
 | ingress.enabled | bool | `false` |  |

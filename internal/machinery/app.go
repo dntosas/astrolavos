@@ -55,8 +55,10 @@ type Astrolavos struct {
 }
 
 // NewAstrolavos creates a new Astrolavos application instance.
-func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, version string, maxPayloadSize int, isOneOff bool) *Astrolavos {
-	promC := metrics.NewPrometheusClient(isOneOff, promPushGateway)
+// histogramBuckets are the latency histogram upper bounds in seconds; an empty
+// slice selects metrics.DefaultTimeBuckets.
+func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, version string, maxPayloadSize int, isOneOff bool, histogramBuckets []float64) *Astrolavos {
+	promC := metrics.NewPrometheusClient(isOneOff, promPushGateway, histogramBuckets)
 	a := newAgent(endpoints, isOneOff, promC)
 
 	return &Astrolavos{

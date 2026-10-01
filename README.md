@@ -42,6 +42,14 @@ Each endpoint entry has the following structure:
 - `tag`: the tags that you might want to attach to Prometheus metrics that astrolavos is exposing.
 - `retries`: how many times to attempt the probe. Default is 1 (single attempt, no retries). For production environments experiencing cluster scaling events, consider increasing to 5+ to handle transient failures gracefully with exponential backoff.
 
+### Histogram Buckets
+All `astrolavos_*_latency_seconds` histograms share one set of bucket upper bounds (in seconds). The default is `[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]`; trimming the list reduces the number of time series per endpoint, extending it improves quantile resolution. The list must be strictly increasing. Configure it either in the config file:
+```
+metrics:
+  histogramBuckets: [0.01, 0.1, 1]
+```
+or via the `ASTROLAVOS_HISTOGRAM_BUCKETS` env var as a comma-separated list (`ASTROLAVOS_HISTOGRAM_BUCKETS="0.01,0.1,1"`). The env var takes precedence over the config file, which takes precedence over the built-in default. In the Helm chart this is `config.metrics.histogramBuckets`.
+
 ### Intelligent Retry Logic (Optional)
 Astrolavos implements **exponential backoff retry logic** when `retries` is set to 2 or higher. When a probe fails, it automatically retries with increasing delays (100ms, 200ms, 400ms, etc.) before reporting an error. This can eliminate false positives during cluster scaling events or temporary network disruptions.
 
