@@ -1,0 +1,475 @@
+suite: workload (DaemonSet / Deployment)
+templates:
+  - templates/deployment.yaml
+release:
+  name: astrolavos
+  namespace: monitoring
+tests:
+  - it: renders a DaemonSet by default with the rollout settings
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - isAPIVersion:
+          of: apps/v1
+      - equal:
+          path: metadata.name
+          value: astrolavos
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+      - notExists:
+          path: spec.replicas
+      - notExists:
+          path: spec.strategy
+      - equal:
+          path: spec.updateStrategy
+          value:
+            type: RollingUpdate
+            rollingUpdate:
+              maxUnavailable: 25%
+      - equal:
+          path: spec.minReadySeconds
+          value: 10
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 3
+      - equal:
+          path: spec.selector.matchLabels
+          value:
+            app.kubernetes.io/name: astrolavos
+            app.kubernetes.io/instance: astrolavos
+
+  - it: renders a Deployment with replicas when autoscaling is off
+    set:
+      deployAsDaemonSet: false
+      autoscaling:
+        enabled: false
+      replicaCount: 3
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 3
+      - equal:
+          path: spec.strategy.type
+          value: RollingUpdate
+      - notExists:
+          path: spec.updateStrategy
+
+  - it: leaves replicas to the HPA on a Deployment with autoscaling on
+    set:
+      deployAsDaemonSet: false
+    asserts:
+      - isKind:
+          of: Deployment
+      - notExists:
+          path: spec.replicas
+
+  - it: runs the published image from the chart defaults
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: astrolavos
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ^ghcr\.io/dntosas/astrolavos:v\d+\.\d+\.\d+$
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+      - notExists:
+          path: spec.template.spec.imagePullSecrets
+
+  - it: honours the global image registry and merges pull secrets
+    set:
+      global:
+        imageRegistry: mirror.example.com
+        imagePullSecrets: [regcred]
+      image:
+        pullSecrets:
+          - name: ghcr-pull
+    asserts:
+      - matchRegex:
+          path: spec.template.spec.containers[0].image
+          pattern: ^mirror\.example\.com/dntosas/astrolavos:v
+      - equal:
+          path: spec.template.spec.imagePullSecrets
+          value:
+            - name: regcred
+            - name: ghcr-pull
+
+  - it: hardens the pod and the container
+    asserts:
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: false
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            fsGroup: 1001
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            runAsUser: 65532
+            runAsGroup: 65532
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+
+  - it: can run on the host network
+    set:
+      hostNetwork: true
+    asserts:
+      - equal:
+          path: spec.template.spec.hostNetwork
+          value: true
+
+  - it: wires the health endpoints into the probes and the preStop hook
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          value:
+            - name: http
+              containerPort: 3000
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.httpGet
+          value:
+            path: /ready
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].startupProbe.failureThreshold
+          value: 15
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet
+          value:
+            path: /live
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet
+          value:
+            path: /ready
+            port: http
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.periodSeconds
+          value: 5
+      - equal:
+          path: spec.template.spec.containers[0].lifecycle.preStop.httpGet
+          value:
+            path: /prestop
+            port: http
+      # must exceed preStop drain (15s) + SIGTERM drain (3s) + HTTP shutdown (10s)
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 40
+
+  - it: lets custom probes replace the built-in ones
+    set:
+      startupProbe:
+        enabled: false
+      livenessProbe:
+        enabled: false
+      readinessProbe:
+        enabled: false
+      customLivenessProbe:
+        tcpSocket:
+          port: http
+    asserts:
+      - notExists:
+          path: spec.template.spec.containers[0].startupProbe
+      - notExists:
+          path: spec.template.spec.containers[0].readinessProbe
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe
+          value:
+            tcpSocket:
+              port: http
+
+  - it: derives ASTROLAVOS_LOG_LEVEL from config.application.logLevel
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env
+          value:
+            - name: ASTROLAVOS_LOG_LEVEL
+              value: INFO
+
+  - it: lets extraEnvVars override the log level and add variables
+    set:
+      extraEnvVars:
+        ASTROLAVOS_LOG_LEVEL: DEBUG
+        ASTROLAVOS_MAX_PAYLOAD_SIZE: "1048576"
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers[0].env
+          count: 2
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ASTROLAVOS_LOG_LEVEL
+            value: DEBUG
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ASTROLAVOS_MAX_PAYLOAD_SIZE
+            value: "1048576"
+
+  - it: renders no env when the log level is unset and no extraEnvVars are given
+    set:
+      config:
+        application: null
+    asserts:
+      - isNullOrEmpty:
+          path: spec.template.spec.containers[0].env
+
+  - it: sources env from a ConfigMap and a Secret
+    set:
+      extraEnvVarsCM: astrolavos-env
+      extraEnvVarsSecret: astrolavos-secrets
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].envFrom
+          value:
+            - configMapRef:
+                name: astrolavos-env
+            - secretRef:
+                name: astrolavos-secrets
+
+  - it: renders extraArgs as flags, valueless for empty values
+    set:
+      extraArgs:
+        config-path: /etc/astrolavos
+        one-off: ""
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - --config-path=/etc/astrolavos
+            - --one-off
+
+  - it: lets command and args be set verbatim
+    set:
+      command: ["/astrolavos"]
+      args: ["--one-off"]
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].command
+          value: ["/astrolavos"]
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value: ["--one-off"]
+
+  - it: mounts config.yaml read-only and rolls pods when the config changes
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: astrolavos-config
+            mountPath: /etc/astrolavos/config.yaml
+            subPath: config.yaml
+            readOnly: true
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: astrolavos-config
+            configMap:
+              name: astrolavos-config
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/configmap"]
+          pattern: ^[0-9a-f]{64}$
+
+  - it: changes the config checksum when an endpoint changes
+    set:
+      config:
+        endpoints:
+          - domain: one.one.one.one
+            interval: 5s
+    asserts:
+      - matchRegex:
+          path: spec.template.metadata.annotations["checksum/configmap"]
+          pattern: ^[0-9a-f]{64}$
+      - notEqual:
+          path: spec.template.metadata.annotations["checksum/configmap"]
+          # checksum of the default values.yaml config block
+          value: 6a2ab721b002f8ca4affa36fc4ef9abc1f8c8cbc182474ac3642801b39c89024
+
+  - it: drops the config volume and checksum when config is disabled
+    set:
+      config:
+        enabled: false
+    asserts:
+      - isNullOrEmpty:
+          path: spec.template.spec.volumes
+      - isNullOrEmpty:
+          path: spec.template.spec.containers[0].volumeMounts
+      - notExists:
+          path: spec.template.metadata.annotations["checksum/configmap"]
+
+  - it: appends extra volumes and mounts, rendered as templates
+    set:
+      extraVolumes:
+        - name: certs
+          secret:
+            secretName: "{{ .Release.Name }}-certs"
+      extraVolumeMounts:
+        - name: certs
+          mountPath: /etc/certs
+          readOnly: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: certs
+            secret:
+              secretName: astrolavos-certs
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: certs
+            mountPath: /etc/certs
+            readOnly: true
+
+  - it: uses the created service account by default
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: astrolavos
+
+  - it: falls back to the default service account when none is created
+    set:
+      serviceAccount:
+        create: false
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: default
+
+  - it: uses an existing service account by name
+    set:
+      serviceAccount:
+        create: false
+        name: probe-sa
+    asserts:
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: probe-sa
+
+  - it: prefers spreading pods across nodes by default
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity.podAntiAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].podAffinityTerm.topologyKey
+          value: kubernetes.io/hostname
+      - isNullOrEmpty:
+          path: spec.template.spec.affinity.podAffinity
+      - isNullOrEmpty:
+          path: spec.template.spec.affinity.nodeAffinity
+
+  - it: lets an explicit affinity replace the presets
+    set:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/os
+                    operator: In
+                    values: [linux]
+    asserts:
+      - notExists:
+          path: spec.template.spec.affinity.podAntiAffinity
+      - equal:
+          path: spec.template.spec.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].key
+          value: kubernetes.io/os
+
+  - it: renders the scheduling knobs, evaluated as templates
+    set:
+      tolerations:
+        - operator: Exists
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-node-critical
+      schedulerName: custom-scheduler
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: "{{ .Release.Name }}"
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - operator: Exists
+      - equal:
+          path: spec.template.spec.nodeSelector
+          value:
+            kubernetes.io/os: linux
+      - equal:
+          path: spec.template.spec.priorityClassName
+          value: system-node-critical
+      - equal:
+          path: spec.template.spec.schedulerName
+          value: custom-scheduler
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[0].labelSelector.matchLabels["app.kubernetes.io/instance"]
+          value: astrolavos
+
+  - it: omits optional scheduling fields when unset
+    asserts:
+      - notExists:
+          path: spec.template.spec.tolerations
+      - notExists:
+          path: spec.template.spec.nodeSelector
+      - notExists:
+          path: spec.template.spec.priorityClassName
+      - notExists:
+          path: spec.template.spec.schedulerName
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+      - notExists:
+          path: spec.template.spec.initContainers
+
+  - it: sets the resource requests and limits
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            limits:
+              cpu: 100m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+
+  - it: adds pod labels and annotations next to the standard ones
+    set:
+      podLabels:
+        team: platform
+      podAnnotations:
+        ad.datadoghq.com/astrolavos.check_names: '["openmetrics"]'
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.team
+          value: platform
+      - equal:
+          path: spec.template.metadata.labels["app.kubernetes.io/name"]
+          value: astrolavos
+      - equal:
+          path: spec.template.metadata.annotations["ad.datadoghq.com/astrolavos.check_names"]
+          value: '["openmetrics"]'
+
+  - it: renders init containers as templates
+    set:
+      initContainers:
+        - name: wait
+          image: busybox
+          command: ["sh", "-c", "echo {{ .Release.Name }}"]
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].command
+          value: ["sh", "-c", "echo astrolavos"]

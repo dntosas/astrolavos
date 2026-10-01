@@ -1,0 +1,163 @@
+suite: Ingress
+templates:
+  - templates/ingress.yaml
+release:
+  name: astrolavos
+  namespace: monitoring
+capabilities:
+  majorVersion: 1
+  minorVersion: 31
+tests:
+  - it: is not rendered by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: routes the hostname to the Service http port
+    set:
+      ingress:
+        enabled: true
+        hostname: probe.example.com
+    asserts:
+      - isKind:
+          of: Ingress
+      - isAPIVersion:
+          of: networking.k8s.io/v1
+      - equal:
+          path: metadata.name
+          value: astrolavos
+      - notExists:
+          path: spec.ingressClassName
+      - notExists:
+          path: spec.tls
+      - lengthEqual:
+          path: spec.rules
+          count: 1
+      - equal:
+          path: spec.rules[0].host
+          value: probe.example.com
+      - equal:
+          path: spec.rules[0].http.paths
+          value:
+            - path: /
+              pathType: ImplementationSpecific
+              backend:
+                service:
+                  name: astrolavos
+                  port:
+                    name: http
+
+  - it: sets the ingress class and the path type
+    set:
+      ingress:
+        enabled: true
+        ingressClassName: nginx
+        path: /metrics
+        pathType: Prefix
+    asserts:
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+      - equal:
+          path: spec.rules[0].http.paths[0].path
+          value: /metrics
+      - equal:
+          path: spec.rules[0].http.paths[0].pathType
+          value: Prefix
+
+  - it: adds a TLS block for a self-signed certificate
+    set:
+      ingress:
+        enabled: true
+        hostname: probe.example.com
+        tls: true
+        selfSigned: true
+    asserts:
+      - equal:
+          path: spec.tls
+          value:
+            - hosts: [probe.example.com]
+              secretName: probe.example.com-tls
+
+  - it: adds a TLS block when cert-manager is requested through annotations
+    set:
+      ingress:
+        enabled: true
+        hostname: probe.example.com
+        tls: true
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt
+    asserts:
+      - equal:
+          path: metadata.annotations["cert-manager.io/cluster-issuer"]
+          value: letsencrypt
+      - equal:
+          path: spec.tls[0].secretName
+          value: probe.example.com-tls
+
+  - it: renders no TLS block when nothing can provide the certificate
+    set:
+      ingress:
+        enabled: true
+        tls: true
+    asserts:
+      - notExists:
+          path: spec.tls
+
+  - it: appends extra hosts, paths, TLS entries and rules
+    set:
+      ingress:
+        enabled: true
+        hostname: probe.example.com
+        extraPaths:
+          - path: /*
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: ssl-redirect
+                port:
+                  name: use-annotation
+        extraHosts:
+          - name: probe-alt.example.com
+        extraTls:
+          - hosts: [probe-alt.example.com]
+            secretName: probe-alt-tls
+        extraRules:
+          - host: "{{ .Release.Name }}.internal"
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: other
+                      port:
+                        number: 80
+    asserts:
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: ssl-redirect
+      - equal:
+          path: spec.rules[0].http.paths[1].backend.service.name
+          value: astrolavos
+      - equal:
+          path: spec.rules[1].host
+          value: probe-alt.example.com
+      - equal:
+          path: spec.rules[1].http.paths[0]
+          value:
+            path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: astrolavos
+                port:
+                  name: http
+      - equal:
+          path: spec.rules[2].host
+          value: astrolavos.internal
+      - equal:
+          path: spec.tls
+          value:
+            - hosts: [probe-alt.example.com]
+              secretName: probe-alt-tls

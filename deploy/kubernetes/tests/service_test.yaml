@@ -1,0 +1,193 @@
+suite: Service
+templates:
+  - templates/service.yaml
+release:
+  name: astrolavos
+  namespace: monitoring
+# internalTrafficPolicy is gated on kubeVersion >= 1.22; helm-unittest's default is older.
+capabilities:
+  majorVersion: 1
+  minorVersion: 31
+tests:
+  - it: exposes port 80 to the container http port as a ClusterIP
+    asserts:
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.name
+          value: astrolavos
+      - equal:
+          path: spec.type
+          value: ClusterIP
+      - equal:
+          path: spec.ports
+          value:
+            - name: http
+              port: 80
+              targetPort: 3000
+              nodePort: null
+      - equal:
+          path: spec.selector
+          value:
+            app.kubernetes.io/name: astrolavos
+            app.kubernetes.io/instance: astrolavos
+      - equal:
+          path: spec.sessionAffinity
+          value: None
+      - equal:
+          path: spec.internalTrafficPolicy
+          value: Cluster
+      - notExists:
+          path: spec.externalTrafficPolicy
+      - notExists:
+          path: spec.clusterIP
+      - notExists:
+          path: metadata.annotations
+
+  - it: prefers same-zone endpoints by default
+    asserts:
+      - equal:
+          path: spec.trafficDistribution
+          value: PreferSameZone
+
+  - it: omits trafficDistribution when unset
+    set:
+      service:
+        trafficDistribution: ""
+    asserts:
+      - notExists:
+          path: spec.trafficDistribution
+
+  - it: follows the container port when it is changed
+    set:
+      containerPorts:
+        http: 8080
+      service:
+        ports:
+          http: 8080
+    asserts:
+      - equal:
+          path: spec.ports[0].targetPort
+          value: 8080
+
+  - it: pins a ClusterIP when requested
+    set:
+      service:
+        clusterIP: 10.96.0.50
+    asserts:
+      - equal:
+          path: spec.clusterIP
+          value: 10.96.0.50
+
+  - it: sets the configured nodePort on a NodePort service
+    set:
+      service:
+        type: NodePort
+        nodePorts:
+          http: 30080
+    asserts:
+      - equal:
+          path: spec.type
+          value: NodePort
+      - equal:
+          path: spec.ports[0].nodePort
+          value: 30080
+      - equal:
+          path: spec.externalTrafficPolicy
+          value: Cluster
+
+  - it: lets the cluster pick the nodePort when none is given
+    set:
+      service:
+        type: NodePort
+    asserts:
+      - notExists:
+          path: spec.ports[0].nodePort
+
+  - it: renders the LoadBalancer specifics only for that type
+    set:
+      service:
+        type: LoadBalancer
+        loadBalancerIP: 203.0.113.10
+        loadBalancerSourceRanges: [10.0.0.0/8]
+        externalTrafficPolicy: Local
+    asserts:
+      - equal:
+          path: spec.loadBalancerIP
+          value: 203.0.113.10
+      - equal:
+          path: spec.loadBalancerSourceRanges
+          value: [10.0.0.0/8]
+      - equal:
+          path: spec.externalTrafficPolicy
+          value: Local
+
+  - it: ignores LoadBalancer fields on a ClusterIP service
+    set:
+      service:
+        loadBalancerIP: 203.0.113.10
+        loadBalancerSourceRanges: [10.0.0.0/8]
+    asserts:
+      - notExists:
+          path: spec.loadBalancerIP
+      - notExists:
+          path: spec.loadBalancerSourceRanges
+
+  - it: merges service and common annotations
+    set:
+      commonAnnotations:
+        owner: sre
+      service:
+        annotations:
+          service.kubernetes.io/topology-mode: Auto
+    asserts:
+      - equal:
+          path: metadata.annotations
+          value:
+            owner: sre
+            service.kubernetes.io/topology-mode: Auto
+
+  - it: appends extra ports and external IPs, rendered as templates
+    set:
+      service:
+        externalIPs: ["192.0.2.1"]
+        extraPorts:
+          - name: "{{ .Release.Name }}-debug"
+            port: 6060
+            targetPort: 6060
+    asserts:
+      - lengthEqual:
+          path: spec.ports
+          count: 2
+      - contains:
+          path: spec.ports
+          content:
+            name: astrolavos-debug
+            port: 6060
+            targetPort: 6060
+      - equal:
+          path: spec.externalIPs
+          value: ["192.0.2.1"]
+
+  - it: renders session affinity config
+    set:
+      service:
+        sessionAffinity: ClientIP
+        sessionAffinityConfig:
+          clientIP:
+            timeoutSeconds: 300
+    asserts:
+      - equal:
+          path: spec.sessionAffinity
+          value: ClientIP
+      - equal:
+          path: spec.sessionAffinityConfig.clientIP.timeoutSeconds
+          value: 300
+
+  - it: is not rendered when disabled
+    set:
+      service:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

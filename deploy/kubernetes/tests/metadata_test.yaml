@@ -1,0 +1,108 @@
+suite: naming, labels and annotations across all resources
+templates:
+  - templates/deployment.yaml
+  - templates/config.yaml
+  - templates/service.yaml
+  - templates/serviceaccount.yaml
+  - templates/servicemonitor.yaml
+  - templates/pdb.yaml
+  - templates/hpa.yaml
+  - templates/ingress.yaml
+  - templates/dashboard-grafana.yaml
+  - templates/dashboard-datadog.yaml
+release:
+  name: astrolavos
+  namespace: monitoring
+capabilities:
+  majorVersion: 1
+  minorVersion: 31
+  apiVersions:
+    - monitoring.coreos.com/v1
+# Enable everything so every template renders a document.
+set:
+  deployAsDaemonSet: false
+  ingress:
+    enabled: true
+  grafanaDashboard:
+    enabled: true
+  datadogDashboard:
+    enabled: true
+tests:
+  - it: stamps the standard labels on every resource
+    asserts:
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: astrolavos
+      - equal:
+          path: metadata.labels["app.kubernetes.io/instance"]
+          value: astrolavos
+      - equal:
+          path: metadata.labels["app.kubernetes.io/managed-by"]
+          value: Helm
+      - matchRegex:
+          path: metadata.labels["helm.sh/chart"]
+          pattern: ^astrolavos-\d+\.\d+\.\d+$
+      - matchRegex:
+          path: metadata.labels["app.kubernetes.io/version"]
+          pattern: ^\d+\.\d+\.\d+$
+
+  - it: places every resource in the release namespace
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+
+  - it: stamps commonLabels and commonAnnotations on every resource
+    set:
+      commonLabels:
+        team: platform
+      commonAnnotations:
+        owner: sre
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.annotations.owner
+          value: sre
+
+  - it: derives names from the release when fullnameOverride is cleared
+    set:
+      fullnameOverride: ""
+      nameOverride: probe
+    asserts:
+      - equal:
+          path: metadata.name
+          value: astrolavos-probe
+        template: templates/deployment.yaml
+      - equal:
+          path: metadata.name
+          value: astrolavos-probe
+        template: templates/service.yaml
+      - equal:
+          path: metadata.name
+          value: astrolavos-probe-config
+        template: templates/config.yaml
+      - equal:
+          path: metadata.name
+          value: astrolavos-probe-grafana-dashboard
+        template: templates/dashboard-grafana.yaml
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: probe
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[0].name
+          value: astrolavos-config
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: astrolavos-probe-config
+        template: templates/deployment.yaml
+      - equal:
+          path: spec.scaleTargetRef.name
+          value: astrolavos-probe
+        template: templates/hpa.yaml
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: astrolavos-probe
+        template: templates/ingress.yaml

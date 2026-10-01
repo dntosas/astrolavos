@@ -19,3 +19,5 @@
 .project
 .idea/
 *.tmproj
+# helm-unittest suites are not part of the packaged chart
+tests/
