@@ -58,7 +58,7 @@ make modsync
 Run these before every commit. CI enforces the same checks.
 
 ```bash
-# Full CI pipeline (fmt → vet → lint → test)
+# Full CI pipeline (fmt → vet → lint → test → vulncheck)
 make ci
 
 # Individual steps
@@ -66,6 +66,7 @@ make fmt                    # go fmt ./...
 make vet                    # go vet ./...
 make lint                   # golangci-lint run --timeout 5m --modules-download-mode=vendor --build-tags integration
 make test                   # go test with -race and coverage
+make vulncheck              # govulncheck ./... (reachable known vulnerabilities; needs network)
 ```
 
 ### E2E Tests
@@ -127,10 +128,16 @@ make helm-docs
 
 | Workflow         | Trigger                          | What it does                                    |
 |------------------|----------------------------------|-------------------------------------------------|
-| `go-ci.yml`      | Push/PR to `main` (Go files)    | fmt → vet → golangci-lint → test                |
-| `go-release.yml` | Tag `v*.*.*`                     | GoReleaser build + GHCR push, then triggers E2E |
+| `go-ci.yml`      | Push/PR to `main` (Go files)    | fmt → vet → golangci-lint → test → govulncheck  |
+| `go-release.yml` | Tag `v*.*.*`                     | GoReleaser build + GHCR push, keyless cosign signatures, SBOMs, provenance attestations, then triggers E2E |
 | `helm-release.yml`| Push to `main`                  | Publishes Helm chart via chart-releaser          |
 | `e2e.yml`        | `workflow_call` / `dispatch`     | Kind cluster → Helm deploy → Terratest          |
+
+Workflow conventions:
+
+- Every workflow declares `permissions: contents: read` at the top and widens it per job only where needed (`go-release.yml` needs `contents`/`packages`/`id-token`/`attestations: write`; `helm-release.yml` needs `contents: write`).
+- Third-party actions are pinned to a full commit SHA with the version in a trailing comment (`uses: owner/action@<sha> # vN`). Dependabot keeps the SHAs current. Do not pin to a tag.
+- Release signing is keyless: cosign gets a short-lived certificate from the workflow's OIDC token. There is no signing key or secret to rotate. Verification commands live in `SECURITY.md`; keep them in sync with the identity (`go-release.yml@refs/tags/vX.Y.Z`) if the workflow file is renamed.
 
 ## Release Process
 
