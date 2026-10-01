@@ -89,6 +89,50 @@ archives:
       formats: [zip]
 checksum:
   name_template: 'checksums.txt'
+
+# SPDX SBOM per release archive, generated with syft (installed in the
+# release workflow) and uploaded alongside the archives.
+sboms:
+  - artifacts: archive
+
+# Keyless (Sigstore) signatures. The release workflow runs with
+# `id-token: write`, so cosign obtains a short-lived certificate bound to the
+# workflow identity; no long-lived signing key exists anywhere.
+#
+# Verify a release checksum file with:
+#   cosign verify-blob \
+#     --certificate checksums.txt.pem --signature checksums.txt.sig \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     --certificate-identity-regexp '^https://github.com/dntosas/astrolavos/\.github/workflows/go-release\.yml@refs/tags/v' \
+#     checksums.txt
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    certificate: '${artifact}.pem'
+    output: true
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - --yes
+
+# Sign every pushed image and multi-arch manifest by digest. Signatures are
+# stored in GHCR next to the image (`sha256-<digest>.sig` tags).
+#
+# Verify an image with:
+#   cosign verify ghcr.io/dntosas/astrolavos:vX.Y.Z \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     --certificate-identity-regexp '^https://github.com/dntosas/astrolavos/\.github/workflows/go-release\.yml@refs/tags/v'
+docker_signs:
+  - cmd: cosign
+    artifacts: all
+    output: true
+    args:
+      - sign
+      - '${artifact}@${digest}'
+      - --yes
+
 snapshot:
   version_template: "{{ incpatch .Version }}-SNAPSHOT"
 changelog:
