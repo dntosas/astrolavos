@@ -1,0 +1,144 @@
+suite: Grafana and Datadog dashboards
+templates:
+  - templates/dashboard-grafana.yaml
+  - templates/dashboard-datadog.yaml
+release:
+  name: astrolavos
+  namespace: monitoring
+tests:
+  - it: ships no dashboards by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: publishes the Grafana dashboard as a ConfigMap for sidecar discovery
+    set:
+      grafanaDashboard:
+        enabled: true
+    template: templates/dashboard-grafana.yaml
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: astrolavos-grafana-dashboard
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+      - equal:
+          path: metadata.labels.grafana_dashboard
+          value: "1"
+      - notExists:
+          path: metadata.annotations
+      # the embedded file is a Grafana dashboard model
+      - matchRegex:
+          path: data["astrolavos-dashboard.json"]
+          pattern: '"title":'
+      - matchRegex:
+          path: data["astrolavos-dashboard.json"]
+          pattern: '"panels":'
+
+  - it: targets a Grafana namespace, folder and custom sidecar label
+    set:
+      grafanaDashboard:
+        enabled: true
+        namespace: grafana
+        folder: Networking
+        sidecarLabel: my_dashboard
+        sidecarLabelValue: "true"
+        annotations:
+          grafana_dashboard_uid: astrolavos
+    template: templates/dashboard-grafana.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: grafana
+      - equal:
+          path: metadata.labels.my_dashboard
+          value: "true"
+      - notExists:
+          path: metadata.labels.grafana_dashboard
+      - equal:
+          path: metadata.annotations
+          value:
+            grafana_folder: Networking
+            grafana_dashboard_uid: astrolavos
+
+  - it: renders the Datadog dashboard CRD with tags and template variables
+    set:
+      datadogDashboard:
+        enabled: true
+    template: templates/dashboard-datadog.yaml
+    asserts:
+      - isKind:
+          of: DatadogDashboard
+      - isAPIVersion:
+          of: datadoghq.com/v1alpha1
+      - equal:
+          path: metadata.name
+          value: astrolavos-network-metrics
+      - equal:
+          path: spec.title
+          value: Astrolavos Network Metrics
+      - equal:
+          path: spec.layoutType
+          value: ordered
+      - equal:
+          path: spec.tags
+          value: ["app:astrolavos"]
+      - lengthEqual:
+          path: spec.templateVariables
+          count: 4
+      - contains:
+          path: spec.templateVariables
+          content:
+            name: tag
+            prefix: tag
+            defaults: ["*"]
+      - contains:
+          path: spec.templateVariables
+          content:
+            name: endpoint
+            prefix: domain
+            defaults: ["*"]
+      - contains:
+          path: spec.templateVariables
+          content:
+            name: cluster
+            prefix: kube_cluster_name
+            defaults: ["*"]
+      - matchRegex:
+          path: spec.widgets
+          pattern: '^\s*\['
+
+  - it: templates the Datadog title and appends tags and variables
+    set:
+      datadogDashboard:
+        enabled: true
+        namespace: datadog
+        title: "{{ .Release.Name }} latency"
+        extraTags: ["team:platform"]
+        extraTemplateVariables:
+          - name: env
+            prefix: env
+            defaults: ["prod"]
+    template: templates/dashboard-datadog.yaml
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: datadog
+      - equal:
+          path: spec.title
+          value: astrolavos latency
+      - equal:
+          path: spec.tags
+          value: ["app:astrolavos", "team:platform"]
+      - lengthEqual:
+          path: spec.templateVariables
+          count: 3
+      - equal:
+          path: spec.templateVariables[2]
+          value:
+            name: env
+            prefix: env
+            defaults: ["prod"]

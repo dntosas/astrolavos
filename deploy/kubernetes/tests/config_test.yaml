@@ -1,0 +1,115 @@
+suite: config ConfigMap
+templates:
+  - templates/config.yaml
+release:
+  name: astrolavos
+  namespace: monitoring
+tests:
+  - it: renders histogram buckets and endpoints into config.yaml
+    asserts:
+      - isKind:
+          of: ConfigMap
+      - equal:
+          path: metadata.name
+          value: astrolavos-config
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+      - equal:
+          path: data["config.yaml"]
+          value: |-
+            metrics:
+              histogramBuckets: [0.001,0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5]
+            endpoints:
+              - domain: www.httpbin.org
+                https: true
+                interval: 10s
+                prober: httpTrace
+                retries: 1
+                tag: example
+
+  - it: omits the metrics block when buckets are empty so the binary default applies
+    set:
+      config:
+        metrics:
+          histogramBuckets: []
+    asserts:
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: histogramBuckets
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: ^endpoints:\n
+
+  - it: tolerates values files written before config.metrics existed
+    set:
+      config:
+        metrics: null
+    asserts:
+      - notMatchRegex:
+          path: data["config.yaml"]
+          pattern: metrics
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: ^endpoints:\n
+
+  - it: renders custom buckets as a JSON list
+    set:
+      config:
+        metrics:
+          histogramBuckets: [0.01, 0.1, 1]
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'histogramBuckets: \[0\.01,0\.1,1\]'
+
+  - it: renders endpoints as templates
+    set:
+      config:
+        endpoints:
+          - domain: "{{ .Release.Name }}/latency"
+            https: false
+            interval: 5s
+            tag: internal
+          - domain: one.one.one.one
+            prober: tcp
+            interval: 5s
+            tag: egress
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '  - domain: ''astrolavos/latency''\n    https: false\n    interval: 5s\n    tag: internal'
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: '  - domain: one\.one\.one\.one\n    interval: 5s\n    prober: tcp\n    tag: egress'
+
+  - it: renders an empty endpoint list when none are configured
+    set:
+      config:
+        endpoints: []
+    asserts:
+      - matchRegex:
+          path: data["config.yaml"]
+          pattern: 'endpoints:$'
+
+  - it: carries common labels and annotations
+    set:
+      commonLabels:
+        team: platform
+      commonAnnotations:
+        owner: sre
+    asserts:
+      - equal:
+          path: metadata.labels.team
+          value: platform
+      - equal:
+          path: metadata.annotations.owner
+          value: sre
+
+  - it: is not rendered when config is disabled
+    set:
+      config:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
