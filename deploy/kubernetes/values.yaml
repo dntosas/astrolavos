@@ -86,7 +86,7 @@ config:
 image:
   registry: ghcr.io
   repository: dntosas/astrolavos
-  tag: v1.0.0
+  tag: v1.1.0
   pullPolicy: Always
   pullSecrets: {}
 

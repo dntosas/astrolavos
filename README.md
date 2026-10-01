@@ -100,3 +100,14 @@ Astrolavos follows [Semantic Versioning](https://semver.org). The application an
 - Helm chart values (removals are announced one minor release ahead)
 
 Breaking changes are marked with a `!` in the commit subject and listed under "Breaking changes" in the release notes.
+
+## Verifying Releases
+Releases after `v1.0.0` are signed keylessly with [Sigstore cosign](https://docs.sigstore.dev) from the tagged release workflow and carry [GitHub build provenance attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations). No long-lived signing key exists. To verify an image:
+
+```
+cosign verify ghcr.io/dntosas/astrolavos:vX.Y.Z \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp '^https://github.com/dntosas/astrolavos/\.github/workflows/go-release\.yml@refs/tags/v'
+```
+
+or, with the GitHub CLI: `gh attestation verify oci://ghcr.io/dntosas/astrolavos:vX.Y.Z --owner dntosas`. See [SECURITY.md](./SECURITY.md) for archive verification, SBOMs and how to report a vulnerability.
