@@ -37,8 +37,12 @@ test:
 envtest: ## Run go tests against code.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v -mod=vendor `go list ./...` -coverprofile cover.out
 
+.PHONY: vulncheck
+vulncheck: ## Report known vulnerabilities reachable from the code (needs network for the vuln DB).
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
 .PHONY: ci
-ci: fmt vet lint test ## Run go fmt/vet/lint/tests against the code.
+ci: fmt vet lint test vulncheck ## Run go fmt/vet/lint/tests/vulncheck against the code.
 
 .PHONY: e2e
 e2e:

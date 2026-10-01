@@ -47,3 +47,6 @@ jobs:
 
       - name: Run go test
         run: make test
+
+      - name: Run govulncheck
+        run: make vulncheck
