@@ -93,9 +93,29 @@ snapshot:
   version_template: "{{ incpatch .Version }}-SNAPSHOT"
 changelog:
   sort: asc
+  abbrev: 7
   filters:
     exclude:
       - '^Merge\spull\srequest\s'
+  # Group by Conventional Commits type so release notes read as a changelog.
+  groups:
+    - title: Breaking changes
+      regexp: '^.*?[a-z]+(\([[:word:]]+\))?!:.+$'
+      order: 0
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))?:.+$'
+      order: 1
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))?:.+$'
+      order: 2
+    - title: Performance
+      regexp: '^.*?perf(\([[:word:]]+\))?:.+$'
+      order: 3
+    - title: Dependencies
+      regexp: '^.*?chore\(deps\):.+$'
+      order: 4
+    - title: Other changes
+      order: 999
 
 # release:
 #   draft: true
