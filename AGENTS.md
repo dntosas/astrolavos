@@ -67,6 +67,7 @@ make vet                    # go vet ./...
 make lint                   # golangci-lint run --timeout 5m --modules-download-mode=vendor --build-tags integration
 make test                   # go test with -race and coverage
 make vulncheck              # govulncheck ./... (reachable known vulnerabilities; needs network)
+make helm-test              # helm unittest --strict deploy/kubernetes (chart template tests)
 ```
 
 ### E2E Tests
@@ -122,7 +123,21 @@ The chart lives in `deploy/kubernetes/`. Key design decisions:
 ```bash
 # Regenerate Helm docs after values.yaml changes
 make helm-docs
+
+# Run the chart unit tests (helm-unittest plugin, pinned to v1.0.3 in CI)
+helm plugin install https://github.com/helm-unittest/helm-unittest.git --version v1.0.3
+make helm-test
 ```
+
+### Chart unit tests (`deploy/kubernetes/tests/`)
+
+[helm-unittest](https://github.com/helm-unittest/helm-unittest) suites, one `*_test.yaml` per template group (`workload`, `config`, `service`, `serviceaccount`, `servicemonitor`, `scaling` for PDB+HPA, `ingress`, `dashboards`, `metadata` for cross-resource naming/labels). `tests/` is in `.helmignore`, so it is not shipped in the packaged chart.
+
+- Every template change needs a test: pin the default rendering, each `values.yaml` switch, and the "disabled → no document" case (`hasDocuments: count: 0`).
+- Prefer exact `equal` on whole sub-objects (`securityContext`, `ports`, `httpGet`) over one assertion per leaf; use `matchRegex` only for free text such as `data["config.yaml"]`.
+- Suites use `release: {name: astrolavos, namespace: monitoring}` so names are stable; the chart's `fullnameOverride: astrolavos` default means most resources are named `astrolavos`.
+- Templates that branch on `Capabilities` need them declared: `capabilities.majorVersion/minorVersion` (Service `internalTrafficPolicy`, HPA/Ingress API versions) and `capabilities.apiVersions` for the ServiceMonitor. Declare `apiVersions` per test, not per suite — a test-level empty list does not clear a suite-level one.
+- Values rendered through `common.tplvalues.render` come back single-quoted when they contain `/` or `{{ }}`; regex for them accordingly.
 
 ## CI/CD Pipeline
 
@@ -130,6 +145,7 @@ make helm-docs
 |------------------|----------------------------------|-------------------------------------------------|
 | `go-ci.yml`      | Push/PR to `main` (Go files)    | fmt → vet → golangci-lint → test → govulncheck  |
 | `go-release.yml` | Tag `v*.*.*`                     | GoReleaser build + GHCR push, keyless cosign signatures, SBOMs, provenance attestations, then triggers E2E |
+| `helm-ci.yml`    | Push (chart files)               | helm dep update → lint --strict → unittest → template → package |
 | `helm-release.yml`| Push to `main`                  | Publishes Helm chart via chart-releaser          |
 | `e2e.yml`        | `workflow_call` / `dispatch`     | Kind cluster → Helm deploy → Terratest          |
 
