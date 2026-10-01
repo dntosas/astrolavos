@@ -35,7 +35,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | autoscaling.targetMemory | int | `80` |  |
 | commonAnnotations | object | `{}` |  |
 | commonLabels | object | `{}` |  |
-| config.application.logLevel | string | `"INFO"` |  |
+| config.application.logLevel | string | `"INFO"` | Log level of the astrolavos process (DEBUG, INFO, WARN, ERROR). Rendered as the `ASTROLAVOS_LOG_LEVEL` env var unless `extraEnvVars` already defines it. |
 | config.enabled | bool | `true` |  |
 | config.endpoints[0].domain | string | `"www.httpbin.org"` |  |
 | config.endpoints[0].https | bool | `true` |  |
@@ -60,7 +60,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | datadogDashboard.title | string | `"Astrolavos Network Metrics"` | Dashboard title (supports tpl rendering, e.g. "{{ include \"common.names.fullname\" . }} Network Metrics") |
 | deployAsDaemonSet | bool | `true` |  |
 | extraArgs | object | `{}` |  |
-| extraEnvVars.ASTROLAVOS_LOG_LEVEL | string | `"INFO"` |  |
+| extraEnvVars | object | `{}` | Extra environment variables as a name/value map. Takes precedence over `config.application.logLevel` for `ASTROLAVOS_LOG_LEVEL`. |
 | extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s) |
 | extraVolumes | list | `[]` | Optionally specify extra list of additional volumes for the Redis&reg; master pod(s) |
 | fullnameOverride | string | `"astrolavos"` |  |
