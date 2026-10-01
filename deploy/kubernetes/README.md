@@ -1,6 +1,6 @@
 # astrolavos
 
-![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![AppVersion: 1.0.0](https://img.shields.io/badge/AppVersion-1.0.0-informational?style=flat-square)
+![Version: 1.1.0](https://img.shields.io/badge/Version-1.1.0-informational?style=flat-square) ![AppVersion: 1.1.0](https://img.shields.io/badge/AppVersion-1.1.0-informational?style=flat-square)
 
 A Helm Chart for deploying Astrolavos Latency Measuring Tool
 
@@ -74,10 +74,10 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | grafanaDashboard.sidecarLabelValue | string | `"1"` | Value for the sidecar discovery label |
 | hostNetwork | bool | `false` |  |
 | image.pullPolicy | string | `"Always"` |  |
-| image.pullSecrets | object | `{}` |  |
+| image.pullSecrets | list | `[]` | Image pull secrets for this image (names or `{name: ...}` entries). Merged with `global.imagePullSecrets`. |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"dntosas/astrolavos"` |  |
-| image.tag | string | `"v1.0.0"` |  |
+| image.tag | string | `"v1.1.0"` |  |
 | ingress.annotations | object | `{}` |  |
 | ingress.apiVersion | string | `""` |  |
 | ingress.enabled | bool | `false` |  |

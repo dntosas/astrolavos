@@ -50,8 +50,8 @@ spec:
     - name: http
       port: 80
       targetPort: {{ .Values.service.ports.http }}
-      {{- if and (or (eq .Values.service.type "NodePort") (eq .Values.service.type "LoadBalancer")) .Values.service.nodePorts.redis}}
-      nodePort: {{ .Values.service.nodePorts.redis}}
+      {{- if and (or (eq .Values.service.type "NodePort") (eq .Values.service.type "LoadBalancer")) .Values.service.nodePorts.http }}
+      nodePort: {{ .Values.service.nodePorts.http }}
       {{- else if eq .Values.service.type "ClusterIP" }}
       nodePort: null
       {{- end }}
