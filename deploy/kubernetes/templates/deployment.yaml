@@ -46,7 +46,10 @@ spec:
         {{- end }}
     spec:
       automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
-      imagePullSecrets: {{ include "common.images.pullSecrets" ( dict "images" (list .Values.image) "global" .Values.global) }}
+      {{- /* the helper emits the `imagePullSecrets:` key itself, or nothing when no secret is configured */}}
+      {{- with include "common.images.pullSecrets" ( dict "images" (list .Values.image) "global" .Values.global ) }}
+      {{- . | nindent 6 }}
+      {{- end }}
       {{- if .Values.podSecurityContext.enabled }}
       securityContext: {{- omit .Values.podSecurityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
@@ -183,10 +186,10 @@ spec:
           {{- end }}
           volumeMounts:
           {{- if .Values.config.enabled }}
-          - name: astrolavos-config
-            mountPath: "/etc/astrolavos/config.yaml"
-            subPath: "config.yaml"
-            readOnly: true
+            - name: astrolavos-config
+              mountPath: "/etc/astrolavos/config.yaml"
+              subPath: "config.yaml"
+              readOnly: true
           {{- end }}
           {{- if .Values.extraVolumeMounts }}
           {{- include "common.tplvalues.render" ( dict "value" .Values.extraVolumeMounts "context" $) | nindent 12 }}
