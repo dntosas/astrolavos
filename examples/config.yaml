@@ -2,6 +2,15 @@
 # Astrolavos Configuration
 # This file defines the endpoints to monitor and their probe configurations
 
+# Optional Prometheus metrics tuning.
+metrics:
+  # Upper bounds (seconds) of the buckets shared by every
+  # astrolavos_*_latency_seconds histogram. Must be strictly increasing.
+  # Fewer buckets = fewer time series per endpoint. Omit or set to [] to use
+  # the built-in default shown here. The ASTROLAVOS_HISTOGRAM_BUCKETS env var
+  # (comma-separated, e.g. "0.01,0.1,1") takes precedence over this file.
+  histogramBuckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
+
 endpoints:
   # HTTP trace probe example - measures detailed HTTP request timing
   # Default: retries: 1 (single attempt, no retries)

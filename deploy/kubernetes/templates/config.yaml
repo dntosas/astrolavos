@@ -13,6 +13,11 @@ metadata:
   {{- end }}
 data:
   config.yaml: |-
+    {{- /* dig tolerates a missing config.metrics block; an empty list renders nothing so the binary default applies */}}
+    {{- with dig "metrics" "histogramBuckets" (list) .Values.config }}
+    metrics:
+      histogramBuckets: {{ toJson . }}
+    {{- end }}
     endpoints:
     {{- if .Values.config.endpoints }}
       {{- include "common.tplvalues.render" ( dict "value" .Values.config.endpoints "context" $ ) | nindent 6 }}

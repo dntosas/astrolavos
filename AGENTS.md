@@ -88,6 +88,7 @@ make e2e ASTROLAVOS_VERSION=v0.12.0
 - Error categories in metrics use `metrics.CategorizeError()` to prevent label cardinality explosion. Never pass raw error strings as Prometheus labels.
 - Structured logging: always use `log.WithField`/`log.WithFields` for context, not string interpolation.
 - Config defaults are set in `initViper()`. Environment variables override YAML via `ASTROLAVOS_` prefix.
+- Latency histogram buckets are shared by all `astrolavos_*_latency_seconds` metrics and resolved as env (`ASTROLAVOS_HISTOGRAM_BUCKETS`) > `config.yaml` (`metrics.histogramBuckets`) > `metrics.DefaultTimeBuckets`. Validation (finite, strictly increasing) lives in `internal/config`; `metrics.NewPrometheusClient` only falls back to the default on an empty slice.
 
 ## Architecture Constraints
 
@@ -147,6 +148,7 @@ make helm-docs
 | `ASTROLAVOS_LOG_LEVEL`       | `DEBUG`     | Log level (DEBUG, INFO, WARN, ERROR)     |
 | `ASTROLAVOS_PROM_PUSH_GW`   | `localhost` | Prometheus push gateway address          |
 | `ASTROLAVOS_MAX_PAYLOAD_SIZE`| `0`         | Max latency endpoint payload (0 = 10MB)  |
+| `ASTROLAVOS_HISTOGRAM_BUCKETS`| `metrics.DefaultTimeBuckets` | Comma-separated latency histogram bucket bounds in seconds; overrides `metrics.histogramBuckets` in `config.yaml` |
 
 ## Do Not
 
