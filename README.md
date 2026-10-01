@@ -29,14 +29,14 @@ Each endpoint entry has the following structure:
   - domain: "www.httpbin.org"
     interval: 5s
     https: true
-    prober: httptrace
+    prober: httpTrace
     tag: mytag
     retries: 3
 ```
 - `domain`: the IP or domain name that will be used
 - `interval`: the time period in seconds that will be used between the different probe attempts. Default is 5 seconds.
-- `prober`: the type of the measurement. For now we support `httptrace` and `tcp`. The default is `httptrace`.
-- `https`: in case of `httptrace` measurement if we will use TLS or not.
+- `prober`: the type of the measurement. For now we support `httpTrace` and `tcp` (case-sensitive). The default is `httpTrace`.
+- `https`: in case of `httpTrace` measurement if we will use TLS or not.
     - `httpTrace`, are measurements that track all phases of HTTP calls and they are based on [httptrace](https://golang.google.cn/pkg/net/http/httptrace/) golang library. This was inspired by [httpstat](https://github.com/reorx/httpstat) cli tool.
     - `tcp`, are measurements that try to open a simple TCP connection.
 - `tag`: the tags that you might want to attach to Prometheus metrics that astrolavos is exposing.
@@ -53,9 +53,7 @@ or via the `ASTROLAVOS_HISTOGRAM_BUCKETS` env var as a comma-separated list (`AS
 ### Intelligent Retry Logic (Optional)
 Astrolavos implements **exponential backoff retry logic** when `retries` is set to 2 or higher. When a probe fails, it automatically retries with increasing delays (100ms, 200ms, 400ms, etc.) before reporting an error. This can eliminate false positives during cluster scaling events or temporary network disruptions.
 
-**Note:** The default is `retries: 1` (no retry) for immediate failure detection. Increase retries if you need resilience during operational events.
-
-For details on configuring retries to handle cluster changes smoothly, see [Smooth Cluster Scaling Guide](./docs/SMOOTH_CLUSTER_SCALING.md).
+**Note:** The default is `retries: 1` (no retry) for immediate failure detection. Increase retries if you need resilience during operational events such as node rollouts or cluster scaling.
 
 ### Running Modes
 Astrolavos can run either as a server mode, where we expose `latency` endpoint that another astrolavos deployment can target from different cluster and `metrics` endpoint that we expose our metrics in prometheus format.
@@ -74,3 +72,31 @@ Usage of ./bin/astrolavos:
   -oneoff
         Run the probe measurements one time and exit.
 ```
+
+Container images are published to `ghcr.io/dntosas/astrolavos` for `linux/amd64` and `linux/arm64` with every tagged release.
+
+## Deploy On Kubernetes
+A Helm chart lives in [`deploy/kubernetes`](./deploy/kubernetes) and is published from this repository:
+
+```
+helm repo add astrolavos https://dntosas.github.io/astrolavos
+helm repo update
+helm install astrolavos astrolavos/astrolavos \
+  --namespace astrolavos --create-namespace \
+  --set 'config.endpoints[0].domain=www.httpbin.org' \
+  --set 'config.endpoints[0].https=true' \
+  --set 'config.endpoints[0].tag=example'
+```
+
+By default the chart deploys a DaemonSet (one prober per node), a Service, a PodDisruptionBudget and a Prometheus Operator `ServiceMonitor`. Set `deployAsDaemonSet=false` for a Deployment with HPA instead. Optional Grafana and Datadog dashboards ship with the chart. All values are documented in the [chart README](./deploy/kubernetes/README.md).
+
+## Versioning And Compatibility
+Astrolavos follows [Semantic Versioning](https://semver.org). The application and the Helm chart are released in lockstep (chart `1.x.y` ships `appVersion` `1.x.y`). Within a major version the following are stable and only change in a backwards-compatible way:
+
+- the `config.yaml` schema and its defaults
+- the `ASTROLAVOS_*` environment variables
+- Prometheus metric names and label sets
+- the HTTP endpoints `/metrics`, `/live`, `/ready`, `/prestop`, `/latency` and `/status`
+- Helm chart values (removals are announced one minor release ahead)
+
+Breaking changes are marked with a `!` in the commit subject and listed under "Breaking changes" in the release notes.
