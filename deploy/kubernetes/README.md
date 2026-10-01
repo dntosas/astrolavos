@@ -1,6 +1,6 @@
 # astrolavos
 
-![Version: 0.19.1](https://img.shields.io/badge/Version-0.19.1-informational?style=flat-square)
+![Version: 1.0.0](https://img.shields.io/badge/Version-1.0.0-informational?style=flat-square) ![AppVersion: 1.0.0](https://img.shields.io/badge/AppVersion-1.0.0-informational?style=flat-square)
 
 A Helm Chart for deploying Astrolavos Latency Measuring Tool
 
@@ -77,7 +77,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | image.pullSecrets | object | `{}` |  |
 | image.registry | string | `"ghcr.io"` |  |
 | image.repository | string | `"dntosas/astrolavos"` |  |
-| image.tag | string | `"v0.19.0"` |  |
+| image.tag | string | `"v1.0.0"` |  |
 | ingress.annotations | object | `{}` |  |
 | ingress.apiVersion | string | `""` |  |
 | ingress.enabled | bool | `false` |  |
