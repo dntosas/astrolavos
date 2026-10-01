@@ -61,6 +61,7 @@ hostNetwork: false
 config:
   enabled: true
   application:
+    # -- Log level of the astrolavos process (DEBUG, INFO, WARN, ERROR). Rendered as the `ASTROLAVOS_LOG_LEVEL` env var unless `extraEnvVars` already defines it.
     logLevel: INFO
   ## Prometheus metrics settings, rendered under `metrics:` in config.yaml.
   metrics:
@@ -90,8 +91,8 @@ image:
   pullSecrets: {}
 
 extraArgs: {}
-extraEnvVars:
-  ASTROLAVOS_LOG_LEVEL: INFO
+# -- Extra environment variables as a name/value map. Takes precedence over `config.application.logLevel` for `ASTROLAVOS_LOG_LEVEL`.
+extraEnvVars: {}
 
 service:
   enabled: true
