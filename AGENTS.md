@@ -33,7 +33,7 @@ examples/                       # Example config.yaml
 | Linting       | golangci-lint v2.14.0 (gosec, gocritic, misspell, revive)    |
 | Container     | Distroless static (`gcr.io/distroless/static:nonroot`)        |
 | Release       | GoReleaser (linux/amd64 + arm64, GHCR multi-arch manifests)  |
-| Helm          | Chart v0.12.0, Bitnami common dependency                      |
+| Helm          | Chart released in lockstep with the app, Bitnami common dependency |
 | E2E           | Terratest + Kind cluster                                      |
 
 ## Setup and Build
@@ -73,7 +73,7 @@ make test                   # go test with -race and coverage
 E2E tests deploy the Helm chart into a Kind cluster via Terratest. They require a published image.
 
 ```bash
-make e2e ASTROLAVOS_VERSION=v0.12.0
+make e2e ASTROLAVOS_VERSION=v1.0.0
 ```
 
 ## Code Style and Conventions
@@ -134,11 +134,19 @@ make helm-docs
 
 ## Release Process
 
-1. Ensure `main` is green.
-2. Tag: `git tag v0.X.0 && git push origin v0.X.0`.
-3. GoReleaser builds binaries + multi-arch Docker images → pushes to `ghcr.io/dntosas/astrolavos`.
-4. E2E runs automatically post-release.
-5. Helm chart version in `Chart.yaml` must be bumped manually before merge.
+Versions follow SemVer and the chart is released in lockstep with the app
+(chart `X.Y.Z` has `appVersion: X.Y.Z` and `image.tag: vX.Y.Z`).
+
+1. In the release PR bump `version` and `appVersion` in `deploy/kubernetes/Chart.yaml`,
+   `image.tag` in `deploy/kubernetes/values.yaml`, then run `make helm-docs`.
+2. Merge to `main` once CI is green. `helm-release.yml` publishes the chart
+   immediately (chart-releaser uses `skip_existing`, so an unbumped chart
+   version is silently not published).
+3. Tag right away so the image the chart references exists:
+   `git tag vX.Y.Z && git push origin vX.Y.Z`.
+4. GoReleaser builds binaries + multi-arch Docker images → pushes to `ghcr.io/dntosas/astrolavos`,
+   with release notes grouped by Conventional Commit type.
+5. E2E runs automatically post-release.
 
 ## Environment Variables
 
