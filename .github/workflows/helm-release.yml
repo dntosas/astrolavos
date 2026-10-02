@@ -1,10 +1,11 @@
 name: Helm Release
+# Dispatch-only. release.yml runs this after go-release.yml has published
+# the image the bumped chart references. It used to run on every push to
+# main, but main carries a bumped-but-unreleased chart between the release
+# commit and a successful image build, and any unrelated push in that window
+# would publish a chart pointing at an image that does not exist yet.
+# Manual fallback: gh workflow run helm-release.yml --ref main
 on:
-  push:
-    branches:
-      - main
-  # release.yml dispatches this after go-release.yml has published the image
-  # the bumped chart references (GITHUB_TOKEN pushes do not fire `on: push`).
   workflow_dispatch:
 
 permissions:
