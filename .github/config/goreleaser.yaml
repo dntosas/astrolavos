@@ -99,26 +99,34 @@ sboms:
 # `id-token: write`, so cosign obtains a short-lived certificate bound to the
 # workflow identity; no long-lived signing key exists anywhere.
 #
+# cosign >= 3 writes blob signatures as a single Sigstore bundle (signature,
+# certificate and transparency-log entry in one JSON file) and requires
+# `--bundle`; the old `--output-signature`/`--output-certificate` pair is
+# ignored. The bundle is uploaded as `checksums.txt.sigstore.json`.
+#
 # Verify a release checksum file with:
-#   cosign verify-blob \
-#     --certificate checksums.txt.pem --signature checksums.txt.sig \
+#   cosign verify-blob --bundle checksums.txt.sigstore.json \
 #     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
 #     --certificate-identity-regexp '^https://github.com/dntosas/astrolavos/\.github/workflows/go-release\.yml@refs/tags/v' \
 #     checksums.txt
 signs:
   - cmd: cosign
     artifacts: checksum
-    certificate: '${artifact}.pem'
+    signature: '${artifact}.sigstore.json'
     output: true
     args:
       - sign-blob
-      - '--output-certificate=${certificate}'
-      - '--output-signature=${signature}'
+      - '--bundle=${signature}'
       - '${artifact}'
       - --yes
 
-# Sign every pushed image and multi-arch manifest by digest. Signatures are
-# stored in GHCR next to the image (`sha256-<digest>.sig` tags).
+# Sign every pushed image and multi-arch manifest by digest.
+#
+# `--new-bundle-format=false` keeps the signature in the legacy layout cosign
+# has used since 1.x: a `sha256-<digest>.sig` tag next to the image. cosign 3
+# defaults to storing it as an OCI 1.1 referring artifact instead, which
+# cosign 2.x clients and older Kyverno releases cannot verify. Flip this once
+# every consumer runs cosign 3 / Kyverno with Sigstore bundle support.
 #
 # Verify an image with:
 #   cosign verify ghcr.io/dntosas/astrolavos:vX.Y.Z \
@@ -130,6 +138,7 @@ docker_signs:
     output: true
     args:
       - sign
+      - --new-bundle-format=false
       - '${artifact}@${digest}'
       - --yes
 

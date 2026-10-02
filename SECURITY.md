@@ -19,10 +19,11 @@ Every release after `v1.0.0` produced by the tagged
 [`go-release.yml`](.github/workflows/go-release.yml) workflow ships with:
 
 - **Keyless Sigstore signatures** (cosign) on every container image and
-  multi-arch manifest in `ghcr.io/dntosas/astrolavos`, and on the
-  `checksums.txt` file of the GitHub release. There is no long-lived signing
-  key; the certificate is bound to the workflow identity and recorded in the
-  public Rekor transparency log.
+  multi-arch manifest in `ghcr.io/dntosas/astrolavos` (stored as
+  `sha256-<digest>.sig` tags next to the image), and on the `checksums.txt`
+  file of the GitHub release (as a Sigstore bundle). There is no long-lived
+  signing key; the certificate is bound to the workflow identity and recorded
+  in the public Rekor transparency log.
 - **SPDX SBOMs** (`*.sbom.json`) for each release archive, generated with syft.
 - **GitHub build provenance attestations** (SLSA) for the release archives,
   SBOMs, checksums and the image manifest.
@@ -47,12 +48,12 @@ To enforce this in a cluster, use an admission policy such as Kyverno
 
 ### Verify a release archive
 
-Download `checksums.txt`, `checksums.txt.sig` and `checksums.txt.pem` from the
-release, then:
+Download `checksums.txt` and its Sigstore bundle `checksums.txt.sigstore.json`
+(signature, certificate and transparency-log entry in one file) from the
+release, then (cosign >= 2.2):
 
 ```sh
-cosign verify-blob \
-  --certificate checksums.txt.pem --signature checksums.txt.sig \
+cosign verify-blob --bundle checksums.txt.sigstore.json \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   --certificate-identity-regexp '^https://github.com/dntosas/astrolavos/\.github/workflows/go-release\.yml@refs/tags/v' \
   checksums.txt

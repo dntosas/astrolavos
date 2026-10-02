@@ -154,6 +154,7 @@ Workflow conventions:
 - Every workflow declares `permissions: contents: read` at the top and widens it per job only where needed (`go-release.yml` needs `contents`/`packages`/`id-token`/`attestations: write`; `helm-release.yml` needs `contents: write`).
 - Third-party actions are pinned to a full commit SHA with the version in a trailing comment (`uses: owner/action@<sha> # vN`). Dependabot keeps the SHAs current. Do not pin to a tag.
 - Release signing is keyless: cosign gets a short-lived certificate from the workflow's OIDC token. There is no signing key or secret to rotate. Verification commands live in `SECURITY.md`; keep them in sync with the identity (`go-release.yml@refs/tags/vX.Y.Z`) if the workflow file is renamed.
+- `cosign-installer` tracks cosign 3.x. Blob signatures must be written with `--bundle` (one `.sigstore.json` per artifact); image signatures are pinned to the legacy `sha256-<digest>.sig` layout with `--new-bundle-format=false` until every consumer can verify OCI 1.1 referrers. Both are explained inline in `.github/config/goreleaser.yaml`.
 
 ## Release Process
 
@@ -170,6 +171,14 @@ Versions follow SemVer and the chart is released in lockstep with the app
 4. GoReleaser builds binaries + multi-arch Docker images → pushes to `ghcr.io/dntosas/astrolavos`,
    with release notes grouped by Conventional Commit type.
 5. E2E runs automatically post-release.
+
+If the Release workflow fails **before** GoReleaser publishes the images
+(anything up to and including "signing artifacts"), the already-published
+chart points at an image tag that does not exist. Fix forward on `main`, then
+move the tag onto the fix commit (`git push --delete origin vX.Y.Z && git tag -f
+vX.Y.Z && git push origin vX.Y.Z`) rather than cutting X.Y.Z+1: nothing has
+consumed the tag yet and the chart already pins `vX.Y.Z`. Once images are
+published, tags are immutable; release a patch instead.
 
 ## Environment Variables
 
