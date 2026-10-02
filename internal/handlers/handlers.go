@@ -14,7 +14,7 @@ import (
 // DefaultMaxPayloadSize is the default maximum payload size (10MB) for the latency endpoint.
 const DefaultMaxPayloadSize = 10485760
 
-// OKHandler responds with HTTP 200 and an empty body.
+// OKHandler responds with HTTP 200 plus a Content-Length header and an empty body.
 //
 // Deprecated: Use health.LiveHandler / health.ReadyHandler for state-aware probes.
 func OKHandler(w http.ResponseWriter, _ *http.Request) {
