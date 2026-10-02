@@ -86,7 +86,7 @@ config:
 image:
   registry: ghcr.io
   repository: dntosas/astrolavos
-  tag: v1.2.0
+  tag: v1.3.0
   pullPolicy: Always
   # -- Image pull secrets for this image (names or `{name: ...}` entries). Merged with `global.imagePullSecrets`.
   pullSecrets: []
