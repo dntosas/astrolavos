@@ -148,7 +148,7 @@ make helm-test
 | `release.yml`    | PR merged to `main` with `release:*` label, or dispatch | Bump chart+image, commit on main, tag, dispatch go-release then helm-release |
 | `go-release.yml` | Tag `v*.*.*` push, or dispatch at a tag | GoReleaser build + GHCR push, keyless cosign signatures, SBOMs, provenance attestations, then triggers E2E |
 | `helm-ci.yml`    | Push (chart files)               | helm dep update → lint --strict → unittest → template → package |
-| `helm-release.yml`| Push to `main`, or dispatch       | Publishes Helm chart via chart-releaser (`skip_existing`) |
+| `helm-release.yml`| Dispatch only (by `release.yml`) | Publishes Helm chart via chart-releaser (`skip_existing`) |
 | `e2e.yml`        | `workflow_call` / `dispatch`     | Kind cluster → Helm deploy → Terratest          |
 
 Workflow conventions:
@@ -192,16 +192,24 @@ workflows, so the bot's tag would otherwise sit there unreleased. API-triggered
 at the tag ref keeps `github.ref` (and therefore the cosign signing identity)
 at `refs/tags/vX.Y.Z`, identical to a human `git push --tags`.
 
+`helm-release.yml` has **no push trigger** on purpose. Between the release
+commit and a successful image build, `main` carries a chart whose `image.tag`
+does not exist yet; a push trigger would publish it on any unrelated merge in
+that window (this is how 1.1.0 shipped a chart with no image).
+
 **FOOT-GUN: `GITHUB_TOKEN` cannot bypass a branch ruleset that requires pull
 requests.** `main` currently has no such rule, which is what lets the bot
 commit directly. If one is added, `release.yml` needs a GitHub App token (or a
 fine-grained PAT) with `contents: write` listed in the ruleset bypass.
 
-If `go-release.yml` fails and no image was published, the chart has not been
-published either (step 4 never ran). Fix forward on `main`, then move the tag
-(`git push --delete origin vX.Y.Z && git tag -f vX.Y.Z && git push origin
-vX.Y.Z`) and re-dispatch `go-release.yml` then `helm-release.yml` at the tag
-and `main`. Once images are published, tags are immutable; cut a patch instead.
+If `go-release.yml` fails, the chart has not been published (step 4 never
+ran), but GoReleaser pushes images **before** signing them, so unsigned
+`vX.Y.Z`/`X.Y.Z`/`latest` manifests may already be in GHCR; a rerun overwrites
+them. Fix forward on `main` (do not label that PR), then move the tag onto the
+fix (`git push --delete origin vX.Y.Z && git tag -f vX.Y.Z origin/main && git
+push origin vX.Y.Z`). The human tag push fires `go-release.yml`; when it is
+green, `gh workflow run helm-release.yml --ref main`. Only once a GitHub
+release exists for the tag is it consumed and immutable; cut a patch instead.
 
 ## Environment Variables
 

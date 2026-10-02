@@ -125,8 +125,12 @@ signs:
 # `--new-bundle-format=false` keeps the signature in the legacy layout cosign
 # has used since 1.x: a `sha256-<digest>.sig` tag next to the image. cosign 3
 # defaults to storing it as an OCI 1.1 referring artifact instead, which
-# cosign 2.x clients and older Kyverno releases cannot verify. Flip this once
-# every consumer runs cosign 3 / Kyverno with Sigstore bundle support.
+# cosign 2.x clients and older Kyverno releases cannot verify. The legacy
+# layout also requires `--use-signing-config=false`: cosign 3's default of
+# resolving Fulcio/Rekor URLs from the TUF signing config is only valid with
+# the new bundle format and errors out otherwise. With it off, cosign uses the
+# public-good instance URLs exactly as 2.x did. Drop both flags once every
+# consumer runs cosign 3 / Kyverno with Sigstore bundle support.
 #
 # Verify an image with:
 #   cosign verify ghcr.io/dntosas/astrolavos:vX.Y.Z \
@@ -139,6 +143,7 @@ docker_signs:
     args:
       - sign
       - --new-bundle-format=false
+      - --use-signing-config=false
       - '${artifact}@${digest}'
       - --yes
 
