@@ -3,6 +3,9 @@ on:
   push:
     branches:
       - main
+  # release.yml dispatches this after go-release.yml has published the image
+  # the bumped chart references (GITHUB_TOKEN pushes do not fire `on: push`).
+  workflow_dispatch:
 
 permissions:
   contents: read

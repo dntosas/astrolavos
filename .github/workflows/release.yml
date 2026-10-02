@@ -1,0 +1,134 @@
+---
+name: "Cut Release"
+
+# Cuts a release when a PR merged into `main` carries exactly one
+# `release:patch|minor|major` label (or on manual dispatch with a bump):
+#   1. compute the next vX.Y.Z from the latest tag,
+#   2. bump Chart.yaml version/appVersion, values.yaml image.tag and the
+#      chart README, commit "chore(release): vX.Y.Z" on main, tag it, push,
+#   3. dispatch `go-release.yml` at the tag (binaries, images, signatures,
+#      GitHub release) and wait for it,
+#   4. dispatch `helm-release.yml` so the chart is published only once the
+#      image it references exists.
+#
+# Steps 3 and 4 are explicit dispatches because pushes made with
+# GITHUB_TOKEN never trigger `on: push` workflows; workflow_dispatch via the
+# API is the documented exception. Dispatching go-release at the tag ref
+# keeps the cosign signing identity at `go-release.yml@refs/tags/vX.Y.Z`.
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Release bump level
+        type: choice
+        options: [patch, minor, major]
+        required: true
+
+permissions:
+  contents: read
+
+# One release at a time; a second labelled merge waits and then bumps from
+# the tag the first one created.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Bump, tag and publish
+    if: >-
+      github.event_name == 'workflow_dispatch' || (
+        github.event.pull_request.merged == true && (
+          contains(github.event.pull_request.labels.*.name, 'release:patch') ||
+          contains(github.event.pull_request.labels.*.name, 'release:minor') ||
+          contains(github.event.pull_request.labels.*.name, 'release:major')
+        )
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # push the release commit and tag
+      actions: write   # dispatch go-release.yml and helm-release.yml
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.27'
+          cache: false
+
+      - name: Determine bump level
+        id: bump
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_BUMP: ${{ inputs.bump }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            bump="$INPUT_BUMP"
+          else
+            # exactly one release:* label, or fail loud so the author re-labels
+            matches=$(jq -r '.[] | select(startswith("release:"))' <<<"$LABELS" | sort -u)
+            count=$(printf '%s\n' "$matches" | grep -c . || true)
+            if [[ "$count" -ne 1 ]]; then
+              echo "::error::expected exactly one release:* label, found: ${matches:-none}"
+              exit 1
+            fi
+            bump="${matches#release:}"
+            # the merge must already be on the main we checked out
+            if ! git merge-base --is-ancestor "$MERGE_SHA" HEAD; then
+              echo "::error::merge commit $MERGE_SHA is not on main"
+              exit 1
+            fi
+          fi
+          echo "bump=$bump" >> "$GITHUB_OUTPUT"
+          echo "Bump level: $bump"
+
+      - name: Configure git identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Bump chart and image, commit, tag, push
+        id: tag
+        env:
+          RELEASE_SKIP_BRANCH_CHECKS: "1"  # actions/checkout leaves HEAD detached
+        run: |
+          set -euo pipefail
+          tag=$(python3 scripts/release.py release "${{ steps.bump.outputs.bump }}" | tail -n1)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "::notice::released $tag"
+
+      - name: Publish binaries and images (go-release.yml)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: scripts/dispatch-and-wait.sh go-release.yml "$TAG"
+
+      - name: Publish Helm chart (helm-release.yml)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/dispatch-and-wait.sh helm-release.yml main
+
+      - name: Summary
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          {
+            echo "## Released $TAG"
+            echo
+            echo "- Image: \`ghcr.io/dntosas/astrolavos:$TAG\`"
+            echo "- Chart: \`astrolavos-${TAG#v}\` at https://dntosas.github.io/astrolavos"
+            echo "- GitHub release: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$TAG"
+          } >> "$GITHUB_STEP_SUMMARY"

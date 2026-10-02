@@ -4,6 +4,10 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
+  # release.yml dispatches this at the tag it just pushed (GITHUB_TOKEN pushes
+  # do not fire `on: push`). Run it from the Actions UI with a vX.Y.Z tag
+  # selected as the ref to re-publish an existing tag.
+  workflow_dispatch:
 
 # Default for every job; the release job widens this explicitly below.
 permissions:
@@ -12,6 +16,8 @@ permissions:
 jobs:
   build:
     name: Create Release
+    # GoReleaser needs HEAD to be the tagged commit; refuse a dispatch on a branch
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write      # create the GitHub release and upload assets

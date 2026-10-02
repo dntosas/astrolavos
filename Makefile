@@ -56,9 +56,11 @@ modsync: ## Run go mod tidy && vendor.
 helm-test: ## Run the helm-unittest suites in deploy/kubernetes/tests (needs the `unittest` helm plugin).
 	helm unittest --strict deploy/kubernetes
 
+HELM_DOCS_VERSION := 1.11.0
+
 .PHONY: helm-docs
-helm-docs:
-	docker run --rm --volume "${PWD}/deploy/kubernetes:/helm-docs" -u ${USER} "jnorwood/helm-docs:v1.11.0"
+helm-docs: ## Regenerate deploy/kubernetes/README.md from values.yaml comments (same invocation as scripts/release.py).
+	go run -ldflags "-X main.version=$(HELM_DOCS_VERSION)" github.com/norwoodj/helm-docs/cmd/helm-docs@v$(HELM_DOCS_VERSION) --chart-search-root deploy/kubernetes
 
 ##@ Build
 
@@ -86,3 +88,26 @@ checksums:
 
 install:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go install -v -a -mod=vendor ${GOBUILD_OPTS}
+
+##@ Release
+# Normally driven by .github/workflows/release.yml from a `release:*` PR label.
+# These targets are the manual fallback and run the same scripts/release.py.
+
+RELEASE := python3 scripts/release.py
+
+.PHONY: latest-tag
+latest-tag: ## Print the latest vX.Y.Z tag.
+	@$(RELEASE) latest-tag
+
+.PHONY: next-version
+next-version: ## Print the next tag for BUMP=patch|minor|major.
+	@if [ -z "$(BUMP)" ]; then echo "usage: make next-version BUMP=patch|minor|major" >&2; exit 1; fi
+	@$(RELEASE) next-version $(BUMP)
+
+.PHONY: release-patch release-minor release-major
+release-patch: ## Bump chart+image to the next patch, commit on main, tag and push (then dispatch the Release workflows).
+	$(RELEASE) release patch
+release-minor: ## Same for the next minor.
+	$(RELEASE) release minor
+release-major: ## Same for the next major.
+	$(RELEASE) release major
