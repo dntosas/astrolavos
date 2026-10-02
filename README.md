@@ -101,6 +101,8 @@ Astrolavos follows [Semantic Versioning](https://semver.org). The application an
 
 Breaking changes are marked with a `!` in the commit subject and listed under "Breaking changes" in the release notes.
 
+Releases are cut automatically: a pull request merged into `main` with a `release:patch`, `release:minor` or `release:major` label bumps the chart and image version on `main`, tags it, and publishes the binaries, images and chart.
+
 ## Verifying Releases
 Releases after `v1.0.0` are signed keylessly with [Sigstore cosign](https://docs.sigstore.dev) from the tagged release workflow and carry [GitHub build provenance attestations](https://docs.github.com/en/actions/security-for-github-actions/using-artifact-attestations). No long-lived signing key exists. To verify an image:
 

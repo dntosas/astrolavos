@@ -20,6 +20,7 @@ tests/                          # E2E tests (separate Go module, Terratest + Kin
 examples/                       # Example config.yaml
 .github/workflows/              # CI (go-ci), Release (GoReleaser), Helm release, E2E
 .github/config/goreleaser.yaml  # GoReleaser multi-arch build config
+scripts/                        # release.py (version bump + tag), dispatch-and-wait.sh (used by release.yml)
 ```
 
 ## Tech Stack
@@ -144,14 +145,15 @@ make helm-test
 | Workflow         | Trigger                          | What it does                                    |
 |------------------|----------------------------------|-------------------------------------------------|
 | `go-ci.yml`      | Push/PR to `main` (Go files)    | fmt → vet → golangci-lint → test → govulncheck  |
-| `go-release.yml` | Tag `v*.*.*`                     | GoReleaser build + GHCR push, keyless cosign signatures, SBOMs, provenance attestations, then triggers E2E |
+| `release.yml`    | PR merged to `main` with `release:*` label, or dispatch | Bump chart+image, commit on main, tag, dispatch go-release then helm-release |
+| `go-release.yml` | Tag `v*.*.*` push, or dispatch at a tag | GoReleaser build + GHCR push, keyless cosign signatures, SBOMs, provenance attestations, then triggers E2E |
 | `helm-ci.yml`    | Push (chart files)               | helm dep update → lint --strict → unittest → template → package |
-| `helm-release.yml`| Push to `main`                  | Publishes Helm chart via chart-releaser          |
+| `helm-release.yml`| Push to `main`, or dispatch       | Publishes Helm chart via chart-releaser (`skip_existing`) |
 | `e2e.yml`        | `workflow_call` / `dispatch`     | Kind cluster → Helm deploy → Terratest          |
 
 Workflow conventions:
 
-- Every workflow declares `permissions: contents: read` at the top and widens it per job only where needed (`go-release.yml` needs `contents`/`packages`/`id-token`/`attestations: write`; `helm-release.yml` needs `contents: write`).
+- Every workflow declares `permissions: contents: read` at the top and widens it per job only where needed (`go-release.yml` needs `contents`/`packages`/`id-token`/`attestations: write`; `helm-release.yml` needs `contents: write`; `release.yml` needs `contents: write` to push and `actions: write` to dispatch).
 - Third-party actions are pinned to a full commit SHA with the version in a trailing comment (`uses: owner/action@<sha> # vN`). Dependabot keeps the SHAs current. Do not pin to a tag.
 - Release signing is keyless: cosign gets a short-lived certificate from the workflow's OIDC token. There is no signing key or secret to rotate. Verification commands live in `SECURITY.md`; keep them in sync with the identity (`go-release.yml@refs/tags/vX.Y.Z`) if the workflow file is renamed.
 - `cosign-installer` tracks cosign 3.x. Blob signatures must be written with `--bundle` (one `.sigstore.json` per artifact); image signatures are pinned to the legacy `sha256-<digest>.sig` layout with `--new-bundle-format=false` until every consumer can verify OCI 1.1 referrers. Both are explained inline in `.github/config/goreleaser.yaml`.
@@ -159,26 +161,47 @@ Workflow conventions:
 ## Release Process
 
 Versions follow SemVer and the chart is released in lockstep with the app
-(chart `X.Y.Z` has `appVersion: X.Y.Z` and `image.tag: vX.Y.Z`).
+(chart `X.Y.Z` has `appVersion: X.Y.Z` and `image.tag: vX.Y.Z`). Releases are
+cut by [`release.yml`](.github/workflows/release.yml); **do not bump
+`Chart.yaml` or `image.tag` by hand in a PR.**
 
-1. In the release PR bump `version` and `appVersion` in `deploy/kubernetes/Chart.yaml`,
-   `image.tag` in `deploy/kubernetes/values.yaml`, then run `make helm-docs`.
-2. Merge to `main` once CI is green. `helm-release.yml` publishes the chart
-   immediately (chart-releaser uses `skip_existing`, so an unbumped chart
-   version is silently not published).
-3. Tag right away so the image the chart references exists:
-   `git tag vX.Y.Z && git push origin vX.Y.Z`.
-4. GoReleaser builds binaries + multi-arch Docker images → pushes to `ghcr.io/dntosas/astrolavos`,
-   with release notes grouped by Conventional Commit type.
-5. E2E runs automatically post-release.
+1. Open the PR as normal and add **exactly one** label before merging:
+   `release:patch` (fix, no new behaviour), `release:minor` (additive,
+   backwards-compatible) or `release:major` (breaking, `!` in the subject).
+   PRs without a label do not release; more than one fails the job.
+2. On merge, `release.yml` checks out `main`, computes the next tag from the
+   latest `vX.Y.Z`, runs `scripts/release.py release <bump>` — which bumps
+   `version`/`appVersion` in `deploy/kubernetes/Chart.yaml`, `image.tag` in
+   `values.yaml`, regenerates the chart README with helm-docs, commits
+   `chore(release): vX.Y.Z` on `main` and pushes an annotated tag — then
+   dispatches `go-release.yml` at the tag and waits for it.
+3. `go-release.yml` builds binaries + multi-arch images, signs everything,
+   attaches SBOMs/provenance, publishes the GitHub release and runs E2E.
+4. Only after that succeeds does `release.yml` dispatch `helm-release.yml`,
+   so the published chart never references an image that does not exist yet.
 
-If the Release workflow fails **before** GoReleaser publishes the images
-(anything up to and including "signing artifacts"), the already-published
-chart points at an image tag that does not exist. Fix forward on `main`, then
-move the tag onto the fix commit (`git push --delete origin vX.Y.Z && git tag -f
-vX.Y.Z && git push origin vX.Y.Z`) rather than cutting X.Y.Z+1: nothing has
-consumed the tag yet and the chart already pins `vX.Y.Z`. Once images are
-published, tags are immutable; release a patch instead.
+A release can also be cut by hand from the Actions UI ("Cut Release" →
+Run workflow → bump), or locally from a clean, up-to-date `main` with
+`make release-patch|minor|major` (then dispatch the two workflows:
+`gh workflow run go-release.yml --ref vX.Y.Z`, `gh workflow run
+helm-release.yml --ref main`).
+
+Why the dispatches: pushes made with `GITHUB_TOKEN` never trigger `on: push`
+workflows, so the bot's tag would otherwise sit there unreleased. API-triggered
+`workflow_dispatch` is GitHub's documented exception. Running `go-release.yml`
+at the tag ref keeps `github.ref` (and therefore the cosign signing identity)
+at `refs/tags/vX.Y.Z`, identical to a human `git push --tags`.
+
+**FOOT-GUN: `GITHUB_TOKEN` cannot bypass a branch ruleset that requires pull
+requests.** `main` currently has no such rule, which is what lets the bot
+commit directly. If one is added, `release.yml` needs a GitHub App token (or a
+fine-grained PAT) with `contents: write` listed in the ruleset bypass.
+
+If `go-release.yml` fails and no image was published, the chart has not been
+published either (step 4 never ran). Fix forward on `main`, then move the tag
+(`git push --delete origin vX.Y.Z && git tag -f vX.Y.Z && git push origin
+vX.Y.Z`) and re-dispatch `go-release.yml` then `helm-release.yml` at the tag
+and `main`. Once images are published, tags are immutable; cut a patch instead.
 
 ## Environment Variables
 
