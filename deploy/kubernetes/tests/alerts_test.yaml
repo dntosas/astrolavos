@@ -254,3 +254,165 @@ tests:
       - equal:
           path: spec.groups[0].interval
           value: 1m
+
+  - it: renders the latency group with four rules and the regression rule off
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.groups[1].name
+          value: astrolavos.latency
+      - lengthEqual:
+          path: spec.groups[1].rules
+          count: 4
+      - equal:
+          path: spec.groups[1].rules[0].alert
+          value: AstrolavosTCPConnectLatencyHigh
+      - equal:
+          path: spec.groups[1].rules[1].alert
+          value: AstrolavosDNSLatencyHigh
+      - equal:
+          path: spec.groups[1].rules[2].alert
+          value: AstrolavosTLSHandshakeLatencyHigh
+      - equal:
+          path: spec.groups[1].rules[3].alert
+          value: AstrolavosTotalLatencyHigh
+      - matchRegex:
+          path: spec.groups[1].rules[0].expr
+          pattern: '^histogram_quantile\(0\.99, sum by \(domain, tag, prober_type, le\) \(rate\(astrolavos_conn_latency_seconds_bucket\[15m\]\)\)\)\n  > 0\.1\n$'
+      - matchRegex:
+          path: spec.groups[1].rules[1].expr
+          pattern: 'astrolavos_dns_latency_seconds_bucket\[15m\]'
+      - matchRegex:
+          path: spec.groups[1].rules[2].expr
+          pattern: 'astrolavos_tls_latency_seconds_bucket\[15m\]\)\)\)\n  > 0\.5\n'
+      - matchRegex:
+          path: spec.groups[1].rules[3].expr
+          pattern: 'astrolavos_total_latency_seconds_bucket\[15m\]\)\)\)\n  > 1\n'
+      - equal:
+          path: spec.groups[1].rules[0].for
+          value: 15m
+      - equal:
+          path: spec.groups[1].rules[0].labels
+          value:
+            severity: warning
+
+  - it: renders the connect latency regression rule when enabled
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        rules:
+          connectLatencyRegression:
+            enabled: true
+            factor: 2
+            baseline: 7d
+            floor: 0.002
+    asserts:
+      - lengthEqual:
+          path: spec.groups[1].rules
+          count: 5
+      - equal:
+          path: spec.groups[1].rules[4].alert
+          value: AstrolavosConnectLatencyRegression
+      - matchRegex:
+          path: spec.groups[1].rules[4].expr
+          pattern: '> 2 \*\n'
+      - matchRegex:
+          path: spec.groups[1].rules[4].expr
+          pattern: '\[15m\] offset 7d\)'
+      - matchRegex:
+          path: spec.groups[1].rules[4].expr
+          pattern: '\nand\n'
+      - matchRegex:
+          path: spec.groups[1].rules[4].expr
+          pattern: '> 0\.002\n$'
+      - equal:
+          path: spec.groups[1].rules[4].for
+          value: 30m
+
+  - it: re-renders the latency rules per latencyOverrides entry and excludes them globally
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        rules:
+          dnsLatencyHigh:
+            enabled: false
+        latencyOverrides:
+          - name: internal
+            selector: 'tag="internal"'
+            tcpConnectLatencyHigh:
+              threshold: 0.01
+              for: 5m
+            totalLatencyHigh:
+              threshold: 0.05
+              severity: critical
+    asserts:
+      # 3 global copies + 3 override copies (dnsLatencyHigh disabled everywhere)
+      - lengthEqual:
+          path: spec.groups[1].rules
+          count: 6
+      # global copies exclude the override's series
+      - equal:
+          path: spec.groups[1].rules[0].alert
+          value: AstrolavosTCPConnectLatencyHigh
+      - matchRegex:
+          path: spec.groups[1].rules[0].expr
+          pattern: 'astrolavos_conn_latency_seconds_bucket\[15m\]'
+      - matchRegex:
+          path: spec.groups[1].rules[0].expr
+          pattern: '> 0\.1\nunless on \(domain, tag, prober_type\)\n  sum by \(domain, tag, prober_type\) \(rate\(astrolavos_requests_total\{tag="internal"\}\[15m\]\)\)\n$'
+      - notExists:
+          path: spec.groups[1].rules[0].labels.override
+      # override copies carry the selector, their thresholds and the override label
+      - equal:
+          path: spec.groups[1].rules[3].alert
+          value: AstrolavosTCPConnectLatencyHigh
+      - matchRegex:
+          path: spec.groups[1].rules[3].expr
+          pattern: '^histogram_quantile\(0\.99, sum by \(domain, tag, prober_type, le\) \(rate\(astrolavos_conn_latency_seconds_bucket\{tag="internal"\}\[15m\]\)\)\)\n  > 0\.01\n$'
+      - equal:
+          path: spec.groups[1].rules[3].for
+          value: 5m
+      - equal:
+          path: spec.groups[1].rules[3].labels
+          value:
+            severity: warning
+            override: internal
+      - equal:
+          path: spec.groups[1].rules[4].alert
+          value: AstrolavosTLSHandshakeLatencyHigh
+      - matchRegex:
+          path: spec.groups[1].rules[4].expr
+          pattern: 'astrolavos_tls_latency_seconds_bucket\{tag="internal"\}\[15m\]\)\)\)\n  > 0\.5\n$'
+      - equal:
+          path: spec.groups[1].rules[5].alert
+          value: AstrolavosTotalLatencyHigh
+      - matchRegex:
+          path: spec.groups[1].rules[5].expr
+          pattern: '> 0\.05\n$'
+      - equal:
+          path: spec.groups[1].rules[5].labels.severity
+          value: critical
+
+  - it: requires a selector on every latencyOverrides entry
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        latencyOverrides:
+          - name: internal
+    asserts:
+      - failedTemplate:
+          errorPattern: 'alerts.latencyOverrides\[\].selector is required'
