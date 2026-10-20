@@ -37,11 +37,12 @@ func (t *TCP) probe(ctx context.Context) {
 		return t.dial(attemptCtx)
 	})
 
-	t.promC.UpdateRequestsCounter(t.endpoint, "tcp", t.tag, "")
+	// The tcp prober dials a new connection every time, so it is never reused.
+	t.promC.UpdateRequestsCounter(t.endpoint, "tcp", t.tag, "", false)
 
 	if err != nil {
 		log.Errorf("TCP prober %s failed after %d attempts: %v", t, t.retries, err)
-		t.promC.UpdateErrorsCounter(t.endpoint, "tcp", t.tag, err)
+		t.promC.UpdateErrorsCounter(t.endpoint, "tcp", t.tag, false, err)
 	}
 }
 

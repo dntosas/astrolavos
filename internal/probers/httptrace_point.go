@@ -38,6 +38,8 @@ type tracePoint struct {
 	totalDuration  float64
 
 	statusCode string
+	// reused reports whether the request rode an existing keep-alive connection.
+	reused bool
 
 	err error
 }
@@ -108,8 +110,9 @@ func (t *tracePoint) setGotConnDuration() {
 	t.gotConnDuration = (t.gotConnTime.Sub(t.totalStartTime)).Seconds()
 }
 
-func (t *tracePoint) gotConnTimeHandler(_ httptrace.GotConnInfo) {
+func (t *tracePoint) gotConnTimeHandler(info httptrace.GotConnInfo) {
 	t.gotConnTime = time.Now()
+	t.reused = info.Reused
 }
 
 func (t *tracePoint) setFirstByteDuration() {

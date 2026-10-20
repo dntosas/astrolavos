@@ -4,6 +4,7 @@ package metrics
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,8 +17,16 @@ import (
 // whenever no histogram buckets are configured.
 var DefaultTimeBuckets = []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}
 
-// latencyLabels are the labels shared by every latency histogram.
-var latencyLabels = []string{"domain", "tag", "prober_type"}
+// latencyLabels are the labels shared by every latency histogram. conn_reused
+// tells a probe that rode an existing (keep-alive) connection from one that
+// opened a new one; a reused connection reports zero DNS/connect/TLS time, so
+// the two must never be mixed in one series.
+var latencyLabels = []string{"domain", "tag", "prober_type", "conn_reused"}
+
+// ReusedLabel renders the conn_reused label value for a probe.
+func ReusedLabel(reused bool) string {
+	return strconv.FormatBool(reused)
+}
 
 // PrometheusClient holds state needed for Prometheus metric collection and pushing.
 type PrometheusClient struct {
@@ -67,14 +76,14 @@ func newPrometheusClient(reg prometheus.Registerer, promPushGateway string, buck
 				Name: "astrolavos_requests_total",
 				Help: "Total number of probe requests made by Astrolavos",
 			},
-			[]string{"domain", "tag", "status_code", "prober_type"},
+			[]string{"domain", "tag", "status_code", "prober_type", "conn_reused"},
 		),
 		totalErrorsCounter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "astrolavos_errors_total",
 				Help: "Total number of probe errors encountered by Astrolavos",
 			},
-			[]string{"domain", "tag", "error", "prober_type"},
+			[]string{"domain", "tag", "error", "prober_type", "conn_reused"},
 		),
 	}
 
@@ -104,45 +113,45 @@ func newPrometheusClient(reg prometheus.Registerer, promPushGateway string, buck
 }
 
 // UpdateDNSHistogram records a DNS resolution duration observation.
-func (p *PrometheusClient) UpdateDNSHistogram(domain, proberType, tag string, duration float64) {
-	p.dnsLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateDNSHistogram(domain, proberType, tag string, reused bool, duration float64) {
+	p.dnsLatencyHistogram.WithLabelValues(domain, tag, proberType, ReusedLabel(reused)).Observe(duration)
 	log.Debug("Updated metric for DNS latency")
 }
 
 // UpdateConnHistogram records a TCP connection duration observation.
-func (p *PrometheusClient) UpdateConnHistogram(domain, proberType, tag string, duration float64) {
-	p.connLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateConnHistogram(domain, proberType, tag string, reused bool, duration float64) {
+	p.connLatencyHistogram.WithLabelValues(domain, tag, proberType, ReusedLabel(reused)).Observe(duration)
 	log.Debug("Updated metric for connection latency")
 }
 
 // UpdateTLSHistogram records a TLS handshake duration observation.
-func (p *PrometheusClient) UpdateTLSHistogram(domain, proberType, tag string, duration float64) {
-	p.tlsLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateTLSHistogram(domain, proberType, tag string, reused bool, duration float64) {
+	p.tlsLatencyHistogram.WithLabelValues(domain, tag, proberType, ReusedLabel(reused)).Observe(duration)
 	log.Debug("Updated metric for TLS latency")
 }
 
 // UpdateGotConnHistogram records the time to obtain a connection.
-func (p *PrometheusClient) UpdateGotConnHistogram(domain, proberType, tag string, duration float64) {
-	p.gotConnLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateGotConnHistogram(domain, proberType, tag string, reused bool, duration float64) {
+	p.gotConnLatencyHistogram.WithLabelValues(domain, tag, proberType, ReusedLabel(reused)).Observe(duration)
 	log.Debug("Updated metric for GotConnection latency")
 }
 
 // UpdateFirstByteHistogram records the time to first byte.
-func (p *PrometheusClient) UpdateFirstByteHistogram(domain, proberType, tag string, duration float64) {
-	p.firstByteLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateFirstByteHistogram(domain, proberType, tag string, reused bool, duration float64) {
+	p.firstByteLatencyHistogram.WithLabelValues(domain, tag, proberType, ReusedLabel(reused)).Observe(duration)
 	log.Debug("Updated metric for FirstByte latency")
 }
 
 // UpdateTotalHistogram records the total request duration.
-func (p *PrometheusClient) UpdateTotalHistogram(domain, proberType, tag string, duration float64) {
-	p.totalLatencyHistogram.WithLabelValues(domain, tag, proberType).Observe(duration)
+func (p *PrometheusClient) UpdateTotalHistogram(domain, proberType, tag string, reused bool, duration float64) {
+	p.totalLatencyHistogram.WithLabelValues(domain, tag, proberType, ReusedLabel(reused)).Observe(duration)
 	log.Debug("Updated metric for total latency")
 }
 
 // UpdateRequestsCounter increments the total requests counter.
 // The status code is bucketed (e.g. "2xx") to limit label cardinality.
-func (p *PrometheusClient) UpdateRequestsCounter(domain, proberType, tag, statusCode string) {
-	p.totalRequestsCounter.WithLabelValues(domain, tag, BucketStatusCode(statusCode), proberType).Inc()
+func (p *PrometheusClient) UpdateRequestsCounter(domain, proberType, tag, statusCode string, reused bool) {
+	p.totalRequestsCounter.WithLabelValues(domain, tag, BucketStatusCode(statusCode), proberType, ReusedLabel(reused)).Inc()
 	log.Debug("Updated metric for total requests counter")
 }
 
@@ -158,9 +167,9 @@ func BucketStatusCode(code string) string {
 
 // UpdateErrorsCounter increments the total errors counter with a categorized error type.
 // Error messages are categorized into a fixed set of labels to prevent cardinality explosion.
-func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType, tag string, err error) {
+func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType, tag string, reused bool, err error) {
 	category := CategorizeError(err)
-	p.totalErrorsCounter.WithLabelValues(domain, tag, category, proberType).Inc()
+	p.totalErrorsCounter.WithLabelValues(domain, tag, category, proberType, ReusedLabel(reused)).Inc()
 	log.Debug("Updated metric for total errors counter")
 }
 

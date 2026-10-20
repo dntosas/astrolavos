@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"errors"
 	"math"
 	"slices"
 	"testing"
@@ -45,7 +46,7 @@ func TestNewPrometheusClient_CustomBuckets(t *testing.T) {
 	reg := prometheus.NewRegistry()
 
 	p := newPrometheusClient(reg, "localhost", custom)
-	p.UpdateTotalHistogram("example.com", "httpTrace", "test", 0.05)
+	p.UpdateTotalHistogram("example.com", "httpTrace", "test", false, 0.05)
 
 	got := gatherBucketBounds(t, reg, "astrolavos_total_latency_seconds")
 	if !slices.Equal(got, custom) {
@@ -57,7 +58,7 @@ func TestNewPrometheusClient_EmptyBucketsUseDefault(t *testing.T) {
 	reg := prometheus.NewRegistry()
 
 	p := newPrometheusClient(reg, "localhost", nil)
-	p.UpdateDNSHistogram("example.com", "httpTrace", "test", 0.002)
+	p.UpdateDNSHistogram("example.com", "httpTrace", "test", false, 0.002)
 
 	got := gatherBucketBounds(t, reg, "astrolavos_dns_latency_seconds")
 	if !slices.Equal(got, DefaultTimeBuckets) {
@@ -70,12 +71,12 @@ func TestNewPrometheusClient_AllHistogramsShareBuckets(t *testing.T) {
 	reg := prometheus.NewRegistry()
 
 	p := newPrometheusClient(reg, "localhost", custom)
-	p.UpdateDNSHistogram("d", "httpTrace", "t", 1)
-	p.UpdateConnHistogram("d", "httpTrace", "t", 1)
-	p.UpdateTLSHistogram("d", "httpTrace", "t", 1)
-	p.UpdateGotConnHistogram("d", "httpTrace", "t", 1)
-	p.UpdateFirstByteHistogram("d", "httpTrace", "t", 1)
-	p.UpdateTotalHistogram("d", "httpTrace", "t", 1)
+	p.UpdateDNSHistogram("d", "httpTrace", "t", false, 1)
+	p.UpdateConnHistogram("d", "httpTrace", "t", false, 1)
+	p.UpdateTLSHistogram("d", "httpTrace", "t", false, 1)
+	p.UpdateGotConnHistogram("d", "httpTrace", "t", false, 1)
+	p.UpdateFirstByteHistogram("d", "httpTrace", "t", false, 1)
+	p.UpdateTotalHistogram("d", "httpTrace", "t", false, 1)
 
 	for _, name := range []string{
 		"astrolavos_dns_latency_seconds",
@@ -87,6 +88,45 @@ func TestNewPrometheusClient_AllHistogramsShareBuckets(t *testing.T) {
 	} {
 		if got := gatherBucketBounds(t, reg, name); !slices.Equal(got, custom) {
 			t.Errorf("%s bucket bounds = %v, want %v", name, got, custom)
+		}
+	}
+}
+
+func TestNewPrometheusClient_AllMetricsCarryConnReused(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	p := newPrometheusClient(reg, "localhost", nil)
+
+	p.UpdateDNSHistogram("d", "httptrace", "t", true, 0.1)
+	p.UpdateConnHistogram("d", "httptrace", "t", true, 0.1)
+	p.UpdateTLSHistogram("d", "httptrace", "t", true, 0.1)
+	p.UpdateGotConnHistogram("d", "httptrace", "t", true, 0.1)
+	p.UpdateFirstByteHistogram("d", "httptrace", "t", true, 0.1)
+	p.UpdateTotalHistogram("d", "httptrace", "t", true, 0.1)
+	p.UpdateRequestsCounter("d", "httptrace", "t", "200", true)
+	p.UpdateErrorsCounter("d", "httptrace", "t", true, errors.New("timeout"))
+
+	families, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("gather: %v", err)
+	}
+
+	if len(families) != 8 {
+		t.Fatalf("expected 8 metric families, got %d", len(families))
+	}
+
+	for _, f := range families {
+		for _, m := range f.GetMetric() {
+			found := false
+
+			for _, l := range m.GetLabel() {
+				if l.GetName() == "conn_reused" && l.GetValue() == "true" {
+					found = true
+				}
+			}
+
+			if !found {
+				t.Errorf("%s lacks conn_reused=\"true\"", f.GetName())
+			}
 		}
 	}
 }
