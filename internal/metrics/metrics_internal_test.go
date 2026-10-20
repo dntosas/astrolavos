@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"math"
 	"slices"
@@ -111,7 +112,7 @@ func TestNewPrometheusClient_AllMetricsCarryConnReused(t *testing.T) {
 	}
 
 	if len(families) != 8 {
-		t.Fatalf("expected 8 metric families, got %d", len(families))
+		t.Fatalf("expected 8 probe metric families, got %d", len(families))
 	}
 
 	for _, f := range families {
@@ -128,5 +129,45 @@ func TestNewPrometheusClient_AllMetricsCarryConnReused(t *testing.T) {
 				t.Errorf("%s lacks conn_reused=\"true\"", f.GetName())
 			}
 		}
+	}
+}
+
+func TestStreamMetrics(t *testing.T) {
+	reg := prometheus.NewRegistry()
+	p := newPrometheusClient(reg, "localhost", nil)
+
+	p.SetStreamConnectionAge("d", "websocket", "t", 42)
+	p.IncStreamReconnects("d", "websocket", "t", context.DeadlineExceeded)
+
+	families, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("gather: %v", err)
+	}
+
+	byName := map[string]*dto.MetricFamily{}
+	for _, f := range families {
+		byName[f.GetName()] = f
+	}
+
+	age, ok := byName["astrolavos_stream_connection_age_seconds"]
+	if !ok || age.GetMetric()[0].GetGauge().GetValue() != 42 {
+		t.Fatalf("age gauge missing or wrong: %v", age)
+	}
+
+	rec, ok := byName["astrolavos_stream_reconnects_total"]
+	if !ok {
+		t.Fatal("reconnects counter missing")
+	}
+
+	var reason string
+
+	for _, l := range rec.GetMetric()[0].GetLabel() {
+		if l.GetName() == "reason" {
+			reason = l.GetValue()
+		}
+	}
+
+	if reason != "timeout" {
+		t.Errorf("reason = %q, want timeout", reason)
 	}
 }
