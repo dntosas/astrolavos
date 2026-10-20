@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -108,18 +109,14 @@ func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 		return nil, errors.New("interval cannot be less than 1 second")
 	}
 
-	if r.Prober != "tcp" && r.Prober != "httpTrace" {
-		return nil, fmt.Errorf("invalid prober type '%s': must be one of ['tcp', 'httpTrace']", r.Prober)
+	if !slices.Contains(validProbers, r.Prober) {
+		return nil, fmt.Errorf("invalid prober type '%s': must be one of %v", r.Prober, validProbers)
 	}
 
-	uri := r.Domain
+	uri := endpointURI(r.Prober, r.Domain, r.HTTPS)
 
-	if r.Prober == "httpTrace" {
-		if r.HTTPS {
-			uri = "https://" + r.Domain
-		} else {
-			uri = "http://" + r.Domain
-		}
+	if isStreamProber(r.Prober) && r.Retries != nil && *r.Retries > 1 {
+		log.WithFields(log.Fields{"domain": r.Domain, "prober": r.Prober}).Warn("retries is ignored by stream probers: a failed heartbeat triggers a reconnect")
 	}
 
 	if r.Retries != nil {
@@ -144,6 +141,35 @@ func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 	}
 
 	return ep, nil
+}
+
+// validProbers are the accepted values of the endpoint `prober` field.
+var validProbers = []string{"tcp", "httpTrace", "websocket", "tcpStream"}
+
+// isStreamProber reports whether the prober holds one long-lived connection.
+func isStreamProber(prober string) bool {
+	return prober == "websocket" || prober == "tcpStream"
+}
+
+// endpointURI adds the scheme a prober expects: http(s) for httpTrace,
+// ws(s) for websocket, and the bare host:port for the tcp probers.
+func endpointURI(prober, domain string, https bool) string {
+	switch prober {
+	case "httpTrace":
+		if https {
+			return "https://" + domain
+		}
+
+		return "http://" + domain
+	case "websocket":
+		if https {
+			return "wss://" + domain
+		}
+
+		return "ws://" + domain
+	default:
+		return domain
+	}
 }
 
 // resolveTimeout returns the per-attempt timeout for an endpoint: the

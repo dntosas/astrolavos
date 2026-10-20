@@ -47,6 +47,10 @@ func newAgent(endpoints []*model.Endpoint, isOneOff bool, promC *metrics.Prometh
 			o = probers.NewTCP(p)
 		case "httpTrace":
 			o = probers.NewHTTPTrace(p)
+		case "websocket":
+			o = probers.NewWebSocketStream(p)
+		case "tcpStream":
+			o = probers.NewTCPStream(p)
 		default:
 			log.Errorf("Unknown prober type: %s", e.ProberType)
 
