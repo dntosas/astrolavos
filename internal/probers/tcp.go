@@ -31,7 +31,10 @@ func (t *TCP) Run(ctx context.Context) {
 // probe performs a single TCP dial with retry logic and records metrics.
 func (t *TCP) probe(ctx context.Context) {
 	err := t.retryWithBackoff(ctx, func() error {
-		return t.dial(ctx)
+		attemptCtx, cancel := t.attemptContext(ctx)
+		defer cancel()
+
+		return t.dial(attemptCtx)
 	})
 
 	t.promC.UpdateRequestsCounter(t.endpoint, "tcp", t.tag, "")

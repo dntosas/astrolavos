@@ -13,6 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// DefaultTimeout bounds a single probe attempt when no timeout is configured.
+const DefaultTimeout = 10 * time.Second
+
 // Prober interface defines the contract each probe implementation must fulfill.
 type Prober interface {
 	String() string
@@ -28,6 +31,7 @@ type ProberOptions struct {
 	Retries             int
 	Interval            time.Duration
 	TCPTimeout          time.Duration
+	Timeout             time.Duration
 	IsOneOff            bool
 	ReuseConnection     bool
 	SkipTLSVerification bool
@@ -44,6 +48,7 @@ type ProberConfig struct {
 	tag        string
 	interval   time.Duration
 	tcpTimeout time.Duration
+	timeout    time.Duration
 	isOneOff   bool
 }
 
@@ -56,6 +61,11 @@ type HTTPProberConfig struct {
 
 // NewProberConfig creates a new ProberConfig from the given options.
 func NewProberConfig(opts ProberOptions) ProberConfig {
+	timeout := opts.Timeout
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+
 	p := ProberConfig{
 		wg:         opts.WG,
 		promC:      opts.PromClient,
@@ -64,6 +74,7 @@ func NewProberConfig(opts ProberOptions) ProberConfig {
 		tag:        opts.Tag,
 		interval:   opts.Interval,
 		tcpTimeout: opts.TCPTimeout,
+		timeout:    timeout,
 		isOneOff:   opts.IsOneOff,
 	}
 
@@ -104,6 +115,13 @@ func (p *ProberConfig) runLoop(ctx context.Context, name string, probe func(ctx 
 			probe(ctx)
 		}
 	}
+}
+
+// attemptContext bounds a single probe attempt by the configured timeout, so
+// a connection whose packets are silently dropped fails with a timeout
+// instead of stalling the prober loop until the kernel gives up.
+func (p *ProberConfig) attemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, p.timeout)
 }
 
 // retryWithBackoff executes fn up to p.retries times with exponential backoff.

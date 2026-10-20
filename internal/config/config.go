@@ -71,6 +71,23 @@ type YamlEndpoint struct {
 	ReuseConnection     bool           `yaml:"reuseConnection"`
 	SkipTLSVerification bool           `yaml:"skipTLSVerification"`
 	TCPTimeout          *time.Duration `yaml:"tcpTimeout"`
+	Timeout             *time.Duration `yaml:"timeout"`
+}
+
+const (
+	// defaultTimeout bounds one probe attempt when the endpoint sets no timeout.
+	defaultTimeout = 10 * time.Second
+	// defaultTCPTimeout is the dial timeout of the tcp prober.
+	defaultTCPTimeout = 10 * time.Second
+)
+
+// durationOrDefault returns *configured when set, def otherwise.
+func durationOrDefault(configured *time.Duration, def time.Duration) time.Duration {
+	if configured == nil {
+		return def
+	}
+
+	return *configured
 }
 
 // getCleanEndpoint validates and converts a YAML endpoint into an application Endpoint.
@@ -109,10 +126,9 @@ func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 		defaultRetries = *r.Retries
 	}
 
-	var defaultTCPTimeout = 10 * time.Second
-
-	if r.TCPTimeout != nil {
-		defaultTCPTimeout = *r.TCPTimeout
+	timeout, err := resolveTimeout(r.Timeout)
+	if err != nil {
+		return nil, err
 	}
 
 	ep := &model.Endpoint{
@@ -123,10 +139,25 @@ func (r *YamlEndpoint) getCleanEndpoint() (*model.Endpoint, error) {
 		ProberType:          r.Prober,
 		ReuseConnection:     r.ReuseConnection,
 		SkipTLSVerification: r.SkipTLSVerification,
-		TCPTimeout:          defaultTCPTimeout,
+		TCPTimeout:          durationOrDefault(r.TCPTimeout, defaultTCPTimeout),
+		Timeout:             timeout,
 	}
 
 	return ep, nil
+}
+
+// resolveTimeout returns the per-attempt timeout for an endpoint: the
+// configured value when set (it must be positive), defaultTimeout otherwise.
+func resolveTimeout(configured *time.Duration) (time.Duration, error) {
+	if configured == nil {
+		return defaultTimeout, nil
+	}
+
+	if *configured <= 0 {
+		return 0, fmt.Errorf("timeout must be greater than zero, got %v", *configured)
+	}
+
+	return *configured, nil
 }
 
 // Config holds all application configuration.

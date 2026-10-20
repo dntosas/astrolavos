@@ -33,8 +33,11 @@ func (h *HTTPTrace) probe(ctx context.Context) {
 	var t *tracePoint
 
 	err := h.retryWithBackoff(ctx, func() error {
+		attemptCtx, cancel := h.attemptContext(ctx)
+		defer cancel()
+
 		var traceErr error
-		t, traceErr = h.trace(ctx)
+		t, traceErr = h.trace(attemptCtx)
 
 		return traceErr
 	})
