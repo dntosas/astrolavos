@@ -162,7 +162,9 @@ func resolveTimeout(configured *time.Duration) (time.Duration, error) {
 
 // Config holds all application configuration.
 type Config struct {
-	AppPort         int
+	AppPort int
+	// EchoPort is the TCP echo listener port for tcpStream peers; 0 disables it.
+	EchoPort        int
 	MaxPayloadSize  int
 	LogLevel        string
 	PromPushGateway string
@@ -199,6 +201,7 @@ func NewConfig(path string) (*Config, error) {
 
 	return &Config{
 		AppPort:          intPort,
+		EchoPort:         viper.GetInt("echo_port"),
 		MaxPayloadSize:   viper.GetInt("max_payload_size"),
 		LogLevel:         viper.GetString("log_level"),
 		PromPushGateway:  viper.GetString("prom_push_gw"),
@@ -332,6 +335,7 @@ func initViper(path string) {
 
 	// Set defaults for environment variables
 	viper.SetDefault("APP_PORT", "3000")
+	viper.SetDefault("ECHO_PORT", 3001)
 	viper.SetDefault("LOG_LEVEL", "DEBUG")
 	viper.SetDefault("PROM_PUSH_GW", "localhost")
 	viper.SetDefault("MAX_PAYLOAD_SIZE", 0) // 0 means use handler's default (10MB)
