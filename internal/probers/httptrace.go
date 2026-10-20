@@ -42,24 +42,25 @@ func (h *HTTPTrace) probe(ctx context.Context) {
 		return traceErr
 	})
 
-	// Determine status code for the request counter
-	statusCode := ""
+	// Status code and connection kind of the last attempt; a failure before a
+	// connection was obtained counts as a fresh connection.
+	statusCode, reused := "", false
 	if t != nil {
-		statusCode = t.statusCode
+		statusCode, reused = t.statusCode, t.reused
 	}
 
-	h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, statusCode)
+	h.promC.UpdateRequestsCounter(h.endpoint, "httptrace", h.tag, statusCode, reused)
 
 	if err != nil {
 		log.Errorf("HTTPTrace %s failed after %d attempts: %v", h, h.retries, err)
-		h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, err)
+		h.promC.UpdateErrorsCounter(h.endpoint, "httptrace", h.tag, reused, err)
 	} else {
 		// Update all exposed Prometheus metrics histograms
-		h.promC.UpdateDNSHistogram(h.endpoint, "httptrace", h.tag, t.dnsDuration)
-		h.promC.UpdateConnHistogram(h.endpoint, "httptrace", h.tag, t.connDuration)
-		h.promC.UpdateTLSHistogram(h.endpoint, "httptrace", h.tag, t.tlsDuration)
-		h.promC.UpdateGotConnHistogram(h.endpoint, "httptrace", h.tag, t.gotConnDuration)
-		h.promC.UpdateFirstByteHistogram(h.endpoint, "httptrace", h.tag, t.firstByteDuration)
-		h.promC.UpdateTotalHistogram(h.endpoint, "httptrace", h.tag, t.totalDuration)
+		h.promC.UpdateDNSHistogram(h.endpoint, "httptrace", h.tag, reused, t.dnsDuration)
+		h.promC.UpdateConnHistogram(h.endpoint, "httptrace", h.tag, reused, t.connDuration)
+		h.promC.UpdateTLSHistogram(h.endpoint, "httptrace", h.tag, reused, t.tlsDuration)
+		h.promC.UpdateGotConnHistogram(h.endpoint, "httptrace", h.tag, reused, t.gotConnDuration)
+		h.promC.UpdateFirstByteHistogram(h.endpoint, "httptrace", h.tag, reused, t.firstByteDuration)
+		h.promC.UpdateTotalHistogram(h.endpoint, "httptrace", h.tag, reused, t.totalDuration)
 	}
 }

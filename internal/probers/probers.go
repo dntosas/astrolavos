@@ -87,6 +87,12 @@ func NewProberConfig(opts ProberOptions) ProberConfig {
 	return p
 }
 
+// WG exposes the WaitGroup the prober signals on exit, so a caller can re-arm
+// it before running the same prober again.
+func (p *ProberConfig) WG() *sync.WaitGroup {
+	return p.wg
+}
+
 // runLoop handles the common one-off vs interval execution pattern.
 // It calls probe on each tick (or once in one-off mode) and respects context cancellation.
 func (p *ProberConfig) runLoop(ctx context.Context, name string, probe func(ctx context.Context)) {

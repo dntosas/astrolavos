@@ -128,3 +128,13 @@ func TestCategorizeError(t *testing.T) {
 		})
 	}
 }
+
+func TestReusedLabel(t *testing.T) {
+	if got := metrics.ReusedLabel(true); got != "true" {
+		t.Errorf("ReusedLabel(true) = %q", got)
+	}
+
+	if got := metrics.ReusedLabel(false); got != "false" {
+		t.Errorf("ReusedLabel(false) = %q", got)
+	}
+}

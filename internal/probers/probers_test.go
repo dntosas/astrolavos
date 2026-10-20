@@ -2,6 +2,7 @@ package probers_test
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -282,5 +283,73 @@ func TestHTTPTrace_TimeoutUnblocksHungProbe(t *testing.T) {
 
 	if got := counterValue(t, "astrolavos_errors_total", map[string]string{"domain": srv.URL, "error": "timeout"}); got != 1 {
 		t.Errorf("expected 1 timeout error for %s, got %v", srv.URL, got)
+	}
+}
+
+func TestHTTPTrace_ReusedConnectionIsLabelled(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	cfg := probers.NewProberConfig(probers.ProberOptions{
+		WG:              newTestWG(),
+		PromClient:      testPromC,
+		Endpoint:        srv.URL,
+		Interval:        time.Second,
+		Retries:         1,
+		IsOneOff:        true,
+		ReuseConnection: true,
+	})
+
+	h := probers.NewHTTPTrace(cfg)
+	h.Run(context.Background())
+
+	// A second one-off run on the same prober reuses the pooled connection.
+	cfg.WG().Add(1)
+	h.Run(context.Background())
+
+	fresh := counterValue(t, "astrolavos_requests_total", map[string]string{"domain": srv.URL, "conn_reused": "false"})
+	reused := counterValue(t, "astrolavos_requests_total", map[string]string{"domain": srv.URL, "conn_reused": "true"})
+
+	if fresh != 1 || reused != 1 {
+		t.Errorf("expected 1 fresh + 1 reused request, got fresh=%v reused=%v", fresh, reused)
+	}
+}
+
+func TestTCP_IsNeverReused(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer ln.Close()
+
+	go func() {
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				return
+			}
+
+			_ = c.Close()
+		}
+	}()
+
+	cfg := probers.NewProberConfig(probers.ProberOptions{
+		WG:         newTestWG(),
+		PromClient: testPromC,
+		Endpoint:   ln.Addr().String(),
+		Interval:   time.Second,
+		Retries:    1,
+		IsOneOff:   true,
+		TCPTimeout: time.Second,
+	})
+
+	probers.NewTCP(cfg).Run(context.Background())
+
+	want := map[string]string{"domain": ln.Addr().String(), "conn_reused": "false", "prober_type": "tcp"}
+	if got := counterValue(t, "astrolavos_requests_total", want); got != 1 {
+		t.Errorf("expected 1 tcp request with conn_reused=false, got %v", got)
 	}
 }
