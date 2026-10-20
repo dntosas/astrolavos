@@ -113,7 +113,7 @@ tests:
           value: AstrolavosHTTPNon2xxRatioHigh
       - lengthEqual:
           path: spec.groups[0].rules
-          count: 4
+          count: 6
       # default thresholds, windows and severities
       - matchRegex:
           path: spec.groups[0].rules[0].expr
@@ -197,7 +197,7 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.groups[0].rules
-          count: 3
+          count: 5
       - equal:
           path: spec.groups[0].rules[1].alert
           value: AstrolavosDNSResolutionFailing
@@ -553,6 +553,8 @@ tests:
           probeFailingOnSingleNode: {enabled: false}
           dnsResolutionFailing: {enabled: false}
           httpNon2xxRatioHigh: {enabled: false}
+          staleConnections: {enabled: false}
+          endpointStalled: {enabled: false}
           tcpConnectLatencyHigh: {enabled: false}
           dnsLatencyHigh: {enabled: false}
           tlsHandshakeLatencyHigh: {enabled: false}
@@ -563,3 +565,65 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: renders the stale-connection and endpoint-stall rules after the HTTP rule
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.groups[0].rules[4].alert
+          value: AstrolavosStaleConnections
+      - matchRegex:
+          path: spec.groups[0].rules[4].expr
+          pattern: 'astrolavos_errors_total\{conn_reused="true", error="timeout"\}\[5m\]'
+      - matchRegex:
+          path: spec.groups[0].rules[4].expr
+          pattern: '> 0\.1\n\)\nunless on \(domain, tag, prober_type\)\n\('
+      - matchRegex:
+          path: spec.groups[0].rules[4].expr
+          pattern: 'astrolavos_errors_total\{conn_reused="false"\}\[5m\]'
+      - matchRegex:
+          path: spec.groups[0].rules[4].expr
+          pattern: '> 0\.1\n\)\n$'
+      - equal:
+          path: spec.groups[0].rules[4].for
+          value: 5m
+      - equal:
+          path: spec.groups[0].rules[4].labels.severity
+          value: critical
+      - equal:
+          path: spec.groups[0].rules[5].alert
+          value: AstrolavosEndpointStalled
+      - matchRegex:
+          path: spec.groups[0].rules[5].expr
+          pattern: 'increase\(astrolavos_requests_total\[1h\]\)\) > 0\n\)\nunless\n\(\n  sum by \(pod, domain, tag, prober_type\) \(increase\(astrolavos_requests_total\[10m\]\)\) > 0'
+      - equal:
+          path: spec.groups[0].rules[5].for
+          value: 5m
+      - equal:
+          path: spec.groups[0].rules[5].labels.severity
+          value: warning
+
+  - it: guards the stale-connection rule with the path-wide threshold
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        rules:
+          probeFailureRatioHigh:
+            threshold: 0.3
+          staleConnections:
+            threshold: 0.05
+    asserts:
+      - matchRegex:
+          path: spec.groups[0].rules[4].expr
+          pattern: '> 0\.05\n\)\nunless'
+      - matchRegex:
+          path: spec.groups[0].rules[4].expr
+          pattern: '> 0\.3\n\)\n$'
