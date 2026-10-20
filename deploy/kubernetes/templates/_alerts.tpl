@@ -180,6 +180,73 @@ Percentage text for a ratio threshold, e.g. 0.05 -> "5%".
         sum by (status_code) (rate(astrolavos_requests_total{domain="{{ `{{ $labels.domain }}` }}"}[10m]))
 {{- end -}}
 
+{{- define "astrolavos.alerts.rule.staleConnections" -}}
+{{- $r := .rule -}}
+{{- $fleet := required "alerts.rules.probeFailureRatioHigh.threshold is required" .context.Values.alerts.rules.probeFailureRatioHigh.threshold -}}
+{{- $threshold := required "alerts.rules.staleConnections.threshold is required" $r.threshold -}}
+- alert: AstrolavosStaleConnections
+  expr: |
+    (
+      sum by (domain, tag, prober_type) (rate(astrolavos_errors_total{conn_reused="true", error="timeout"}[5m]))
+        /
+      sum by (domain, tag, prober_type) (rate(astrolavos_requests_total{conn_reused="true"}[5m]))
+        > {{ $threshold }}
+    )
+    unless on (domain, tag, prober_type)
+    (
+      sum by (domain, tag, prober_type) (rate(astrolavos_errors_total{conn_reused="false"}[5m]))
+        /
+      sum by (domain, tag, prober_type) (rate(astrolavos_requests_total{conn_reused="false"}[5m]))
+        > {{ $fleet }}
+    )
+  for: {{ required "alerts.rules.staleConnections.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      established connections to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }}) are stale:
+      {{ `{{ $value | humanizePercentage }}` }} of keep-alive probes time out
+    description: |
+      More than {{ include "astrolavos.alerts.percent" $threshold }} of probes that reuse an existing
+      connection to {{ `{{ $labels.domain }}` }} time out, while fresh connections to the same
+      target succeed. Existing flows are being black-holed (packets dropped
+      without a reset) and only new connections get a working path. This is
+      the signature of a CNI or egress-gateway rollout (conntrack/NAT state
+      lost, gateway reselected mid-flow): workloads holding long-lived
+      connections hang until their own timeouts fire.
+
+      Investigate: what changed on the egress path in the last 15m (CNI agent
+      rollout, egress gateway node change, NAT gateway), per node
+        sum by (pod) (rate(astrolavos_errors_total{domain="{{ `{{ $labels.domain }}` }}", conn_reused="true", error="timeout"}[5m]))
+      and TCP retransmits on the same nodes (node_netstat_Tcp_RetransSegs).
+      Restarting affected workloads re-establishes their connections.
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.endpointStalled" -}}
+{{- $r := .rule -}}
+- alert: AstrolavosEndpointStalled
+  expr: |
+    (
+      sum by (pod, domain, tag, prober_type) (increase(astrolavos_requests_total[1h])) > 0
+    )
+    unless
+    (
+      sum by (pod, domain, tag, prober_type) (increase(astrolavos_requests_total[10m])) > 0
+    )
+  for: {{ required "alerts.rules.endpointStalled.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      {{ `{{ $labels.pod }}` }} stopped probing {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+    description: |
+      {{ `{{ $labels.pod }}` }} recorded probes to {{ `{{ $labels.domain }}` }} within the last hour
+      but none in the last 10 minutes, while the pod is still scraped. The
+      prober loop for this endpoint is stuck, so failure and latency alerts
+      are blind for it. Every attempt is bounded by the endpoint `timeout`,
+      so this should not happen; treat it as a bug and capture the logs
+      before restarting:
+        kubectl logs -n <namespace> {{ `{{ $labels.pod }}` }}
+{{- end -}}
+
 {{/* ----------------------------------------------------------------------
      Group astrolavos.latency
      Histograms are recorded only on successful httptrace probes, so these

@@ -82,6 +82,11 @@ config:
       retries: 1
       prober: httpTrace
       tag: "example"
+      # Keep the connection between probes to detect black-holed established
+      # flows (see the AstrolavosStaleConnections alert); default false.
+      reuseConnection: false
+      # Deadline of one probe attempt; default 10s.
+      timeout: 10s
 
 image:
   registry: ghcr.io
@@ -390,6 +395,17 @@ alerts:
       enabled: true
       threshold: 0.1
       for: 10m
+      severity: warning
+    # -- Timeouts on reused (keep-alive) connections above `threshold` while fresh connections to the same target succeed: established flows are black-holed, e.g. by a CNI/egress-gateway rollout. Needs at least one endpoint with `reuseConnection: true`.
+    staleConnections:
+      enabled: true
+      threshold: 0.1
+      for: 5m
+      severity: critical
+    # -- An endpoint that produced probes in the last hour but none in the last 10m: that prober loop is stuck and the other alerts are blind for it
+    endpointStalled:
+      enabled: true
+      for: 5m
       severity: warning
     # -- p`quantile` TCP connect latency (seconds) above `threshold`: RTT or SYN loss on the path, independent of the application
     tcpConnectLatencyHigh:
