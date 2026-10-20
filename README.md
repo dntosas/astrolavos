@@ -88,7 +88,7 @@ helm install astrolavos astrolavos/astrolavos \
   --set 'config.endpoints[0].tag=example'
 ```
 
-By default the chart deploys a DaemonSet (one prober per node), a Service, a PodDisruptionBudget and a Prometheus Operator `ServiceMonitor`. Set `deployAsDaemonSet=false` for a Deployment with HPA instead. Optional Grafana and Datadog dashboards ship with the chart. All values are documented in the [chart README](./deploy/kubernetes/README.md).
+By default the chart deploys a DaemonSet (one prober per node), a Service, a PodDisruptionBudget and a Prometheus Operator `ServiceMonitor`. Set `deployAsDaemonSet=false` for a Deployment with HPA instead. Optional Grafana and Datadog dashboards ship with the chart, as does a curated set of alerting rules (probe failure ratio, single-node failures, DNS failures, connect/DNS/TLS/total latency, prober self-health) rendered as a `PrometheusRule` or a `VMRule`: set `alerts.enabled=true` and pick `alerts.kind`. Per-target latency thresholds go in `alerts.latencyOverrides`. All values are documented in the [chart README](./deploy/kubernetes/README.md).
 
 ## Versioning And Compatibility
 Astrolavos follows [Semantic Versioning](https://semver.org). The application and the Helm chart are released in lockstep (chart `1.x.y` ships `appVersion` `1.x.y`). Within a major version the following are stable and only change in a backwards-compatible way:

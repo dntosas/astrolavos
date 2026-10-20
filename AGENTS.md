@@ -120,6 +120,7 @@ The chart lives in `deploy/kubernetes/`. Key design decisions:
 - **SecurityContext** runs as non-root (UID 65532), read-only rootfs, all capabilities dropped.
 - **preStop hook** sleeps 15s for graceful connection draining.
 - **ServiceMonitor** enabled by default for Prometheus Operator scraping.
+- **Alerting rules** (`alerts.*`) render as a `PrometheusRule` or `VMRule` from `templates/alerts.yaml`; both CRDs share the same `groups[].rules[]` spec so one template body serves both. Each rule is a named template `astrolavos.alerts.rule.<values key>` in `templates/_alerts.tpl` taking `{context, rule, selector, exclusions, override}`; `alerts.yaml` dispatches by key and re-renders the latency rules once per `latencyOverrides` entry. Alert names (`Astrolavos` + PascalCase key) are hardcoded in each template, not derived, so tests can pin them. Keep the key lists in `alerts.yaml` in sync when adding a rule, and give every new values key a `# --` helm-docs comment.
 
 ```bash
 # Regenerate Helm docs after values.yaml changes
@@ -132,7 +133,7 @@ make helm-test
 
 ### Chart unit tests (`deploy/kubernetes/tests/`)
 
-[helm-unittest](https://github.com/helm-unittest/helm-unittest) suites, one `*_test.yaml` per template group (`workload`, `config`, `service`, `serviceaccount`, `servicemonitor`, `scaling` for PDB+HPA, `ingress`, `dashboards`, `metadata` for cross-resource naming/labels). `tests/` is in `.helmignore`, so it is not shipped in the packaged chart.
+[helm-unittest](https://github.com/helm-unittest/helm-unittest) suites, one `*_test.yaml` per template group (`workload`, `config`, `service`, `serviceaccount`, `servicemonitor`, `alerts`, `scaling` for PDB+HPA, `ingress`, `dashboards`, `metadata` for cross-resource naming/labels). `tests/` is in `.helmignore`, so it is not shipped in the packaged chart.
 
 - Every template change needs a test: pin the default rendering, each `values.yaml` switch, and the "disabled → no document" case (`hasDocuments: count: 0`).
 - Prefer exact `equal` on whole sub-objects (`securityContext`, `ports`, `httpGet`) over one assertion per leaf; use `matchRegex` only for free text such as `data["config.yaml"]`.
