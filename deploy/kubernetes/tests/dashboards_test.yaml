@@ -37,6 +37,13 @@ tests:
       - matchRegex:
           path: data["astrolavos-dashboard.json"]
           pattern: '"panels":'
+      # connection-kind variable and its matcher on every panel query
+      - matchRegex:
+          path: data["astrolavos-dashboard.json"]
+          pattern: '"name": "keepalive"'
+      - matchRegex:
+          path: data["astrolavos-dashboard.json"]
+          pattern: 'conn_reused=~\\"\$keepalive\\"'
 
   - it: targets a Grafana namespace, folder and custom sidecar label
     set:
@@ -88,13 +95,22 @@ tests:
           value: ["app:astrolavos"]
       - lengthEqual:
           path: spec.templateVariables
-          count: 4
+          count: 5
       - contains:
           path: spec.templateVariables
           content:
             name: tag
             prefix: tag
             defaults: ["*"]
+      - contains:
+          path: spec.templateVariables
+          content:
+            name: conn_reused
+            prefix: conn_reused
+            defaults: ["*"]
+      - matchRegex:
+          path: spec.widgets
+          pattern: '\{\$tag,\$endpoint,\$conn_reused\}'
       - contains:
           path: spec.templateVariables
           content:
@@ -135,9 +151,9 @@ tests:
           value: ["app:astrolavos", "team:platform"]
       - lengthEqual:
           path: spec.templateVariables
-          count: 3
+          count: 4
       - equal:
-          path: spec.templateVariables[2]
+          path: spec.templateVariables[3]
           value:
             name: env
             prefix: env

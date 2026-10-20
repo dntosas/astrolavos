@@ -34,6 +34,10 @@ spec:
       prefix: domain
       defaults:
         - "*"
+    - name: conn_reused
+      prefix: conn_reused
+      defaults:
+        - "*"
     {{- range .Values.datadogDashboard.extraTemplateVariables }}
     - {{- toYaml . | nindent 6 }}
     {{- end }}

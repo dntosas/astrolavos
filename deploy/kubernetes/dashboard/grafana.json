@@ -116,7 +116,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_dns_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_dns_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\", conn_reused=~\"$keepalive\"}[5m])) by (le, tag, domain))",
           "instant": false,
           "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
@@ -221,7 +221,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_conn_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_conn_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\", conn_reused=~\"$keepalive\"}[5m])) by (le, tag, domain))",
           "instant": false,
           "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
@@ -326,7 +326,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_gotconn_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_gotconn_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\", conn_reused=~\"$keepalive\"}[5m])) by (le, tag, domain))",
           "instant": false,
           "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
@@ -431,7 +431,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_tls_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_tls_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\", conn_reused=~\"$keepalive\"}[5m])) by (le, tag, domain))",
           "instant": false,
           "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
@@ -536,7 +536,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_firstbyte_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_firstbyte_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\", conn_reused=~\"$keepalive\"}[5m])) by (le, tag, domain))",
           "instant": false,
           "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
@@ -641,7 +641,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_total_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\"}[5m])) by (le, tag, domain))",
+          "expr": "histogram_quantile(0.99, sum(rate(astrolavos_total_latency_seconds_bucket{tag=~\"$tag\", domain=~\"$endpoint\", conn_reused=~\"$keepalive\"}[5m])) by (le, tag, domain))",
           "instant": false,
           "legendFormat": "{{ tag }} - {{ domain }}",
           "range": true,
@@ -746,7 +746,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(rate(astrolavos_errors_total{tag=~\"$tag\", domain=~\"$endpoint\"}[5m]))",
+          "expr": "sum(rate(astrolavos_errors_total{tag=~\"$tag\", domain=~\"$endpoint\", conn_reused=~\"$keepalive\"}[5m]))",
           "instant": false,
           "legendFormat": "{{ error }}",
           "range": true,
@@ -849,6 +849,37 @@
         "refresh": 1,
         "regex": "",
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": ".*"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Connection",
+        "multi": false,
+        "name": "keepalive",
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": ".*"
+          },
+          {
+            "selected": false,
+            "text": "Keep-alive",
+            "value": "true"
+          },
+          {
+            "selected": false,
+            "text": "New",
+            "value": "false"
+          }
+        ],
+        "query": "All : .*,Keep-alive : true,New : false",
+        "type": "custom"
       }
     ]
   },

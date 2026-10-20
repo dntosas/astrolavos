@@ -13,7 +13,7 @@
             {
               "name": "query1",
               "data_source": "metrics",
-              "query": "p99:astrolavos_dns_latency_seconds{$tag,$endpoint} by {tag,domain}"
+              "query": "p99:astrolavos_dns_latency_seconds{$tag,$endpoint,$conn_reused} by {tag,domain}"
             }
           ],
           "response_format": "timeseries",
@@ -43,7 +43,7 @@
             {
               "name": "query1",
               "data_source": "metrics",
-              "query": "p99:astrolavos_conn_latency_seconds{$tag,$endpoint} by {tag,domain}"
+              "query": "p99:astrolavos_conn_latency_seconds{$tag,$endpoint,$conn_reused} by {tag,domain}"
             }
           ],
           "response_format": "timeseries",
@@ -73,7 +73,7 @@
             {
               "name": "query1",
               "data_source": "metrics",
-              "query": "p99:astrolavos_gotconn_latency_seconds{$tag,$endpoint} by {tag,domain}"
+              "query": "p99:astrolavos_gotconn_latency_seconds{$tag,$endpoint,$conn_reused} by {tag,domain}"
             }
           ],
           "response_format": "timeseries",
@@ -103,7 +103,7 @@
             {
               "name": "query1",
               "data_source": "metrics",
-              "query": "p99:astrolavos_tls_latency_seconds{$tag,$endpoint} by {tag,domain}"
+              "query": "p99:astrolavos_tls_latency_seconds{$tag,$endpoint,$conn_reused} by {tag,domain}"
             }
           ],
           "response_format": "timeseries",
@@ -133,7 +133,7 @@
             {
               "name": "query1",
               "data_source": "metrics",
-              "query": "p99:astrolavos_firstbyte_latency_seconds{$tag,$endpoint} by {tag,domain}"
+              "query": "p99:astrolavos_firstbyte_latency_seconds{$tag,$endpoint,$conn_reused} by {tag,domain}"
             }
           ],
           "response_format": "timeseries",
@@ -163,7 +163,7 @@
             {
               "name": "query1",
               "data_source": "metrics",
-              "query": "p99:astrolavos_total_latency_seconds{$tag,$endpoint} by {tag,domain}"
+              "query": "p99:astrolavos_total_latency_seconds{$tag,$endpoint,$conn_reused} by {tag,domain}"
             }
           ],
           "response_format": "timeseries",
@@ -193,7 +193,7 @@
             {
               "name": "query1",
               "data_source": "metrics",
-              "query": "sum:astrolavos_errors_total{$tag,$endpoint} by {error}.as_rate()"
+              "query": "sum:astrolavos_errors_total{$tag,$endpoint,$conn_reused} by {error}.as_rate()"
             }
           ],
           "response_format": "timeseries",
