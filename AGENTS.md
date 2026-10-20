@@ -110,6 +110,7 @@ make e2e ASTROLAVOS_VERSION=v1.0.0
 5. Register the new type in `internal/machinery/agent.go` switch statement.
 6. Add unit tests in `internal/probers/<name>_test.go`.
 7. Update `internal/config/config.go` validation to accept the new prober name.
+8. Add alerting rules for whatever the prober (or any new metric/label) makes observable: a values entry under `alerts.rules.<key>` with a `# --` comment, a `astrolavos.alerts.rule.<key>` template in `deploy/kubernetes/templates/_alerts.tpl`, the key in the right group list in `templates/alerts.yaml`, and tests in `tests/alerts_test.yaml`. Check whether existing rules need the new `prober_type` or error category (e.g. a prober that records histograms makes the latency rules apply to it; a new `metrics.CategorizeError` category may deserve its own ratio rule like `dnsResolutionFailing`). Then `make helm-docs`.
 
 ## Helm Chart
 
@@ -136,6 +137,7 @@ make helm-test
 [helm-unittest](https://github.com/helm-unittest/helm-unittest) suites, one `*_test.yaml` per template group (`workload`, `config`, `service`, `serviceaccount`, `servicemonitor`, `alerts`, `scaling` for PDB+HPA, `ingress`, `dashboards`, `metadata` for cross-resource naming/labels). `tests/` is in `.helmignore`, so it is not shipped in the packaged chart.
 
 - Every template change needs a test: pin the default rendering, each `values.yaml` switch, and the "disabled → no document" case (`hasDocuments: count: 0`).
+- Every change under `deploy/kubernetes/` (templates, `values.yaml`, `_helpers.tpl`, `_alerts.tpl`, dashboards) must ship with a bump of all three of `Chart.yaml` `version`, `Chart.yaml` `appVersion` and `values.yaml` `image.tag`, in lockstep. In this repo that bump is produced by the release flow: put exactly one `release:patch|minor|major` label on the PR and `release.yml` writes the three values and tags on merge (see "Release Process"). Do not hand-edit them in the PR; a chart change merged without a label leaves the published chart stale.
 - Prefer exact `equal` on whole sub-objects (`securityContext`, `ports`, `httpGet`) over one assertion per leaf; use `matchRegex` only for free text such as `data["config.yaml"]`.
 - Suites use `release: {name: astrolavos, namespace: monitoring}` so names are stable; the chart's `fullnameOverride: astrolavos` default means most resources are named `astrolavos`.
 - Templates that branch on `Capabilities` need them declared: `capabilities.majorVersion/minorVersion` (Service `internalTrafficPolicy`, HPA/Ingress API versions) and `capabilities.apiVersions` for the ServiceMonitor. Declare `apiVersions` per test, not per suite — a test-level empty list does not clear a suite-level one.
