@@ -208,5 +208,99 @@
       "yaxis": { "include_zero": true, "scale": "linear" }
     },
     "layout": { "x": 0, "y": 8, "width": 4, "height": 4 }
+  },
+  {
+    "definition": {
+      "title": "Stream connection age",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": [
+        "avg",
+        "min",
+        "max",
+        "value"
+      ],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [
+            {
+              "formula": "query1"
+            }
+          ],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "min:astrolavos_stream_connection_age_seconds{$tag,$endpoint} by {domain,pod_name}"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "dog_classic",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": {
+        "include_zero": true,
+        "scale": "linear"
+      }
+    },
+    "layout": {
+      "x": 4,
+      "y": 8,
+      "width": 4,
+      "height": 4
+    }
+  },
+  {
+    "definition": {
+      "title": "Stream reconnects",
+      "show_legend": true,
+      "legend_layout": "horizontal",
+      "legend_columns": [
+        "avg",
+        "min",
+        "max",
+        "value"
+      ],
+      "type": "timeseries",
+      "requests": [
+        {
+          "formulas": [
+            {
+              "formula": "query1"
+            }
+          ],
+          "queries": [
+            {
+              "name": "query1",
+              "data_source": "metrics",
+              "query": "sum:astrolavos_stream_reconnects_total{$tag,$endpoint} by {domain,reason}.as_count()"
+            }
+          ],
+          "response_format": "timeseries",
+          "display_type": "line",
+          "style": {
+            "palette": "warm",
+            "line_type": "solid",
+            "line_width": "normal"
+          }
+        }
+      ],
+      "yaxis": {
+        "include_zero": true,
+        "scale": "linear"
+      }
+    },
+    "layout": {
+      "x": 8,
+      "y": 8,
+      "width": 4,
+      "height": 4
+    }
   }
 ]
