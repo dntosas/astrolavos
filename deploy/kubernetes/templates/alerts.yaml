@@ -1,0 +1,86 @@
+{{- if .Values.alerts.enabled }}
+{{- $a := .Values.alerts }}
+{{- $apiVersion := include "astrolavos.alerts.apiVersion" . }}
+{{- if .Capabilities.APIVersions.Has $apiVersion }}
+{{- /*
+Rule keys per group, in render order. Each key has a named template
+"astrolavos.alerts.rule.<key>" in _alerts.tpl. Latency rules are rendered
+once globally (excluding every latencyOverrides selector) and once more per
+latencyOverrides entry with that entry's selector and thresholds.
+*/}}
+{{- $groups := list
+      (dict "name" "astrolavos.reachability" "keys" (list "probeFailureRatioHigh" "probeFailingOnSingleNode" "dnsResolutionFailing" "httpNon2xxRatioHigh"))
+      (dict "name" "astrolavos.latency" "keys" (list "tcpConnectLatencyHigh" "dnsLatencyHigh" "tlsHandshakeLatencyHigh" "totalLatencyHigh" "connectLatencyRegression"))
+      (dict "name" "astrolavos.selfhealth" "keys" (list "probeStalled" "targetsDown")) }}
+{{- $anyRule := false }}
+{{- range $groups }}
+{{- range .keys }}
+{{- if (index $a.rules .).enabled }}{{ $anyRule = true }}{{ end }}
+{{- end }}
+{{- end }}
+{{- if or $anyRule $a.additionalRules }}
+{{- $exclusions := list }}
+{{- range $a.latencyOverrides }}
+{{- $exclusions = append $exclusions (required "alerts.latencyOverrides[].selector is required" .selector) }}
+{{- end }}
+apiVersion: {{ $apiVersion }}
+kind: {{ $a.kind }}
+metadata:
+  name: {{ include "common.names.fullname" . }}
+  namespace: {{ default (include "common.names.namespace" .) $a.namespace | quote }}
+  labels: {{- include "common.labels.standard" . | nindent 4 }}
+    {{- if $a.additionalLabels }}
+    {{- include "common.tplvalues.render" (dict "value" $a.additionalLabels "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.commonLabels }}
+    {{- include "common.tplvalues.render" (dict "value" .Values.commonLabels "context" $) | nindent 4 }}
+    {{- end }}
+  {{- if or $a.annotations .Values.commonAnnotations }}
+  annotations:
+    {{- if $a.annotations }}
+    {{- include "common.tplvalues.render" (dict "value" $a.annotations "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if .Values.commonAnnotations }}
+    {{- include "common.tplvalues.render" (dict "value" .Values.commonAnnotations "context" $) | nindent 4 }}
+    {{- end }}
+  {{- end }}
+spec:
+  groups:
+  {{- range $groups }}
+  {{- $group := . }}
+  {{- $isLatency := eq $group.name "astrolavos.latency" }}
+  {{- $enabled := list }}
+  {{- range .keys }}
+  {{- if (index $a.rules .).enabled }}{{ $enabled = append $enabled . }}{{ end }}
+  {{- end }}
+  {{- if $enabled }}
+    - name: {{ $group.name }}
+      {{- with $a.interval }}
+      interval: {{ . }}
+      {{- end }}
+      rules:
+      {{- range $enabled }}
+        {{- include (printf "astrolavos.alerts.rule.%s" .) (dict "context" $ "rule" (index $a.rules .) "selector" "" "exclusions" (ternary $exclusions (list) $isLatency) "override" "") | nindent 8 }}
+      {{- end }}
+      {{- if $isLatency }}
+      {{- range $a.latencyOverrides }}
+      {{- $ov := . }}
+      {{- $name := required "alerts.latencyOverrides[].name is required" $ov.name }}
+      {{- range $enabled }}
+        {{- $rule := mergeOverwrite (deepCopy (index $a.rules .)) (default (dict) (index $ov .)) }}
+        {{- include (printf "astrolavos.alerts.rule.%s" .) (dict "context" $ "rule" $rule "selector" $ov.selector "exclusions" (list) "override" $name) | nindent 8 }}
+      {{- end }}
+      {{- end }}
+      {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- with $a.additionalRules }}
+    - name: astrolavos.custom
+      {{- with $a.interval }}
+      interval: {{ . }}
+      {{- end }}
+      rules: {{- include "common.tplvalues.render" (dict "value" . "context" $) | nindent 8 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,256 @@
+suite: Alerting rules (PrometheusRule / VMRule)
+templates:
+  - templates/alerts.yaml
+release:
+  name: astrolavos
+  namespace: monitoring
+tests:
+  - it: ships no alerting rules by default
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: is skipped when the PrometheusRule CRD is absent
+    set:
+      alerts:
+        enabled: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: is skipped when the VMRule CRD is absent
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        kind: VMRule
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a PrometheusRule named after the chart in the release namespace
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+    asserts:
+      - isKind:
+          of: PrometheusRule
+      - isAPIVersion:
+          of: monitoring.coreos.com/v1
+      - equal:
+          path: metadata.name
+          value: astrolavos
+      - equal:
+          path: metadata.namespace
+          value: monitoring
+      - equal:
+          path: metadata.labels["app.kubernetes.io/name"]
+          value: astrolavos
+      - notExists:
+          path: metadata.annotations
+      - notExists:
+          path: spec.groups[0].interval
+
+  - it: renders a VMRule when asked to
+    capabilities:
+      apiVersions:
+        - operator.victoriametrics.com/v1beta1
+    set:
+      alerts:
+        enabled: true
+        kind: VMRule
+    asserts:
+      - isKind:
+          of: VMRule
+      - isAPIVersion:
+          of: operator.victoriametrics.com/v1beta1
+      - equal:
+          path: metadata.name
+          value: astrolavos
+
+  - it: rejects an unknown rule kind
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        kind: AlertingRule
+    asserts:
+      - failedTemplate:
+          errorPattern: 'alerts.kind must be PrometheusRule or VMRule, got "AlertingRule"'
+
+  - it: renders the reachability group with its four rules by default
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.groups[0].name
+          value: astrolavos.reachability
+      - equal:
+          path: spec.groups[0].rules[0].alert
+          value: AstrolavosProbeFailureRatioHigh
+      - equal:
+          path: spec.groups[0].rules[1].alert
+          value: AstrolavosProbeFailingOnSingleNode
+      - equal:
+          path: spec.groups[0].rules[2].alert
+          value: AstrolavosDNSResolutionFailing
+      - equal:
+          path: spec.groups[0].rules[3].alert
+          value: AstrolavosHTTPNon2xxRatioHigh
+      - lengthEqual:
+          path: spec.groups[0].rules
+          count: 4
+      # default thresholds, windows and severities
+      - matchRegex:
+          path: spec.groups[0].rules[0].expr
+          pattern: 'rate\(astrolavos_errors_total\[10m\]\)'
+      - matchRegex:
+          path: spec.groups[0].rules[0].expr
+          pattern: '> 0\.1\n'
+      - equal:
+          path: spec.groups[0].rules[0].for
+          value: 10m
+      - equal:
+          path: spec.groups[0].rules[0].labels
+          value:
+            severity: critical
+      # the single-node rule is guarded by the fleet-wide threshold
+      - matchRegex:
+          path: spec.groups[0].rules[1].expr
+          pattern: 'sum by \(pod, domain, tag, prober_type\)'
+      - matchRegex:
+          path: spec.groups[0].rules[1].expr
+          pattern: 'and on \(domain, tag, prober_type\)'
+      - matchRegex:
+          path: spec.groups[0].rules[1].expr
+          pattern: '<= 0\.1\n'
+      - equal:
+          path: spec.groups[0].rules[1].labels.severity
+          value: warning
+      - matchRegex:
+          path: spec.groups[0].rules[2].expr
+          pattern: 'astrolavos_errors_total\{error="dns_error"\}\[5m\]'
+      - equal:
+          path: spec.groups[0].rules[2].for
+          value: 5m
+      - matchRegex:
+          path: spec.groups[0].rules[3].expr
+          pattern: 'status_code!~"2xx\|3xx\|"'
+      - matchRegex:
+          path: spec.groups[0].rules[3].expr
+          pattern: 'prober_type="httptrace"'
+      # alertmanager template placeholders survive helm rendering
+      - matchRegex:
+          path: spec.groups[0].rules[0].annotations.summary
+          pattern: '\{\{ \$labels\.domain \}\}'
+
+  - it: threads threshold, for and severity from values into a rule
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        rules:
+          probeFailureRatioHigh:
+            threshold: 0.25
+            for: 5m
+            severity: page
+    asserts:
+      - matchRegex:
+          path: spec.groups[0].rules[0].expr
+          pattern: '> 0\.25\n'
+      - equal:
+          path: spec.groups[0].rules[0].for
+          value: 5m
+      - equal:
+          path: spec.groups[0].rules[0].labels.severity
+          value: page
+      - matchRegex:
+          path: spec.groups[0].rules[0].annotations.description
+          pattern: 'More than 25%'
+
+  - it: drops a disabled rule and keeps the others in order
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        rules:
+          probeFailingOnSingleNode:
+            enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.groups[0].rules
+          count: 3
+      - equal:
+          path: spec.groups[0].rules[1].alert
+          value: AstrolavosDNSResolutionFailing
+
+  - it: merges alerts.labels into every rule without overriding severity
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        labels:
+          team: infrastructure
+          severity: ignored
+    asserts:
+      - equal:
+          path: spec.groups[0].rules[0].labels
+          value:
+            severity: critical
+            team: infrastructure
+      - equal:
+          path: spec.groups[0].rules[1].labels
+          value:
+            severity: warning
+            team: infrastructure
+
+  - it: renders namespace, interval, extra labels and annotations
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      commonAnnotations:
+        owner: sre
+      alerts:
+        enabled: true
+        namespace: prometheus
+        interval: 1m
+        additionalLabels:
+          release: kube-prometheus-stack
+        annotations:
+          argocd.argoproj.io/sync-options: Replace=true
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: prometheus
+      - equal:
+          path: metadata.labels.release
+          value: kube-prometheus-stack
+      - equal:
+          path: metadata.annotations
+          value:
+            argocd.argoproj.io/sync-options: Replace=true
+            owner: sre
+      - equal:
+          path: spec.groups[0].interval
+          value: 1m

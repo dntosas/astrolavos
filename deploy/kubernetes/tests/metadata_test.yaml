@@ -10,6 +10,7 @@ templates:
   - templates/ingress.yaml
   - templates/dashboard-grafana.yaml
   - templates/dashboard-datadog.yaml
+  - templates/alerts.yaml
 release:
   name: astrolavos
   namespace: monitoring
@@ -26,6 +27,8 @@ set:
   grafanaDashboard:
     enabled: true
   datadogDashboard:
+    enabled: true
+  alerts:
     enabled: true
 tests:
   - it: stamps the standard labels on every resource
