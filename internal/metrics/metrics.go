@@ -90,20 +90,8 @@ func newPrometheusClient(reg prometheus.Registerer, promPushGateway string, buck
 			},
 			[]string{"domain", "tag", "error", "prober_type", "conn_reused"},
 		),
-		streamConnectionAge: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "astrolavos_stream_connection_age_seconds",
-				Help: "Age of the current long-lived stream connection at the last heartbeat; 0 while disconnected",
-			},
-			[]string{"domain", "tag", "prober_type"},
-		),
-		streamReconnects: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
-				Name: "astrolavos_stream_reconnects_total",
-				Help: "Stream connections dropped after a failed heartbeat, by error category",
-			},
-			[]string{"domain", "tag", "prober_type", "reason"},
-		),
+		streamConnectionAge: newStreamConnectionAgeGauge(),
+		streamReconnects:    newStreamReconnectsCounter(),
 	}
 
 	collectors := []prometheus.Collector{
@@ -121,16 +109,21 @@ func newPrometheusClient(reg prometheus.Registerer, promPushGateway string, buck
 
 	reg.MustRegister(collectors...)
 
+	p.pusher = newPusher(promPushGateway, collectors)
+
+	log.WithField("histogram_buckets", buckets).Info("Metrics setup - scrape /metrics")
+
+	return p
+}
+
+// newPusher builds the push-gateway client carrying every collector.
+func newPusher(promPushGateway string, collectors []prometheus.Collector) *push.Pusher {
 	pusher := push.New(promPushGateway, "astrolavos")
 	for _, c := range collectors {
 		pusher = pusher.Collector(c)
 	}
 
-	p.pusher = pusher
-
-	log.WithField("histogram_buckets", buckets).Info("Metrics setup - scrape /metrics")
-
-	return p
+	return pusher
 }
 
 // UpdateDNSHistogram records a DNS resolution duration observation.
@@ -194,6 +187,26 @@ func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType, tag string, r
 	log.Debug("Updated metric for total errors counter")
 }
 
+func newStreamConnectionAgeGauge() *prometheus.GaugeVec {
+	return prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "astrolavos_stream_connection_age_seconds",
+			Help: "Age of the current long-lived stream connection at the last heartbeat; 0 while disconnected",
+		},
+		[]string{"domain", "tag", "prober_type"},
+	)
+}
+
+func newStreamReconnectsCounter() *prometheus.CounterVec {
+	return prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "astrolavos_stream_reconnects_total",
+			Help: "Stream connections dropped after a failed heartbeat, by error category",
+		},
+		[]string{"domain", "tag", "prober_type", "reason"},
+	)
+}
+
 // SetStreamConnectionAge records how long the current stream connection has
 // been up, in seconds (0 while disconnected).
 func (p *PrometheusClient) SetStreamConnectionAge(domain, proberType, tag string, seconds float64) {
@@ -220,6 +233,7 @@ var errorPatterns = []errorPattern{
 	{"connection refused", "connection_refused"},
 	{"connection reset", "connection_reset"},
 	{"timeout", "timeout"},
+	{"deadline exceeded", "timeout"},
 	{"tls", "tls_error"},
 	{"x509", "tls_error"},
 	{"certificate", "tls_error"},
