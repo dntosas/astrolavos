@@ -179,3 +179,188 @@ Percentage text for a ratio threshold, e.g. 0.05 -> "5%".
       Investigate the status class breakdown:
         sum by (status_code) (rate(astrolavos_requests_total{domain="{{ `{{ $labels.domain }}` }}"}[10m]))
 {{- end -}}
+
+{{/* ----------------------------------------------------------------------
+     Group astrolavos.latency
+     Histograms are recorded only on successful httptrace probes, so these
+     rules are never skewed by failures and never fire for tcp targets.
+     ---------------------------------------------------------------------- */}}
+
+{{/*
+histogram_quantile expression over a 15m window for one latency metric.
+dict: quantile, metric (dns|conn|tls|total), selector, offset (optional)
+*/}}
+{{- define "astrolavos.alerts.quantile" -}}
+histogram_quantile({{ .quantile }}, sum by (domain, tag, prober_type, le) (rate(astrolavos_{{ .metric }}_latency_seconds_bucket{{ include "astrolavos.alerts.selector" .selector }}[15m]{{ with .offset }} offset {{ . }}{{ end }})))
+{{- end -}}
+
+{{/*
+One "unless" clause per latencyOverrides selector so the global copy of a
+latency rule skips the series an override copy evaluates. Empty when there
+is nothing to exclude.
+*/}}
+{{- define "astrolavos.alerts.exclusions" -}}
+{{- $lines := list -}}
+{{- range .exclusions -}}
+{{- $lines = append $lines (printf "unless on (domain, tag, prober_type)\n  sum by (domain, tag, prober_type) (rate(astrolavos_requests_total{%s}[15m]))" .) -}}
+{{- end -}}
+{{- join "\n" $lines -}}
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.tcpConnectLatencyHigh" -}}
+{{- $r := .rule -}}
+{{- $q := required "alerts.rules.tcpConnectLatencyHigh.quantile is required" $r.quantile -}}
+{{- $threshold := required "alerts.rules.tcpConnectLatencyHigh.threshold is required" $r.threshold -}}
+- alert: AstrolavosTCPConnectLatencyHigh
+  expr: |
+    {{ include "astrolavos.alerts.quantile" (dict "quantile" $q "metric" "conn" "selector" .selector) }}
+      > {{ $threshold }}
+    {{- with include "astrolavos.alerts.exclusions" . }}
+    {{- . | nindent 4 }}
+    {{- end }}
+  for: {{ required "alerts.rules.tcpConnectLatencyHigh.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      p{{ $q }} TCP connect latency to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+      is {{ `{{ $value | humanizeDuration }}` }}
+    description: |
+      The p{{ $q }} time to complete the TCP handshake with {{ `{{ $labels.domain }}` }}
+      has been above {{ $threshold }}s for 15m. Connect time is pure network
+      round-trip plus SYN retransmits, independent of DNS, TLS and the
+      application, so this is the cleanest "the path got slow or lossy"
+      signal: cross-AZ or cross-region routing, packet loss, a saturated NAT
+      gateway or an overloaded peer accept queue.
+
+      Investigate: compare per node to see if it is one node or the fleet
+        histogram_quantile({{ $q }}, sum by (pod, le) (rate(astrolavos_conn_latency_seconds_bucket{domain="{{ `{{ $labels.domain }}` }}"}[15m])))
+      and check AstrolavosProbeFailureRatioHigh for the same target: loss
+      usually shows up as timeouts shortly after.
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.dnsLatencyHigh" -}}
+{{- $r := .rule -}}
+{{- $q := required "alerts.rules.dnsLatencyHigh.quantile is required" $r.quantile -}}
+{{- $threshold := required "alerts.rules.dnsLatencyHigh.threshold is required" $r.threshold -}}
+- alert: AstrolavosDNSLatencyHigh
+  expr: |
+    {{ include "astrolavos.alerts.quantile" (dict "quantile" $q "metric" "dns" "selector" .selector) }}
+      > {{ $threshold }}
+    {{- with include "astrolavos.alerts.exclusions" . }}
+    {{- . | nindent 4 }}
+    {{- end }}
+  for: {{ required "alerts.rules.dnsLatencyHigh.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      p{{ $q }} DNS resolution of {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+      takes {{ `{{ $value | humanizeDuration }}` }}
+    description: |
+      The p{{ $q }} time to resolve {{ `{{ $labels.domain }}` }} from inside a pod has
+      been above {{ $threshold }}s for 15m. This is the client view of the
+      whole resolver chain (node-local cache, cluster DNS, upstream): lookups
+      still succeed but stall, which usually precedes dns_error failures.
+
+      Investigate: cluster DNS cache hit ratio and upstream forward latency
+      for the same window, and whether the slowness is per node
+        histogram_quantile({{ $q }}, sum by (pod, le) (rate(astrolavos_dns_latency_seconds_bucket{domain="{{ `{{ $labels.domain }}` }}"}[15m])))
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.tlsHandshakeLatencyHigh" -}}
+{{- $r := .rule -}}
+{{- $q := required "alerts.rules.tlsHandshakeLatencyHigh.quantile is required" $r.quantile -}}
+{{- $threshold := required "alerts.rules.tlsHandshakeLatencyHigh.threshold is required" $r.threshold -}}
+- alert: AstrolavosTLSHandshakeLatencyHigh
+  expr: |
+    {{ include "astrolavos.alerts.quantile" (dict "quantile" $q "metric" "tls" "selector" .selector) }}
+      > {{ $threshold }}
+    {{- with include "astrolavos.alerts.exclusions" . }}
+    {{- . | nindent 4 }}
+    {{- end }}
+  for: {{ required "alerts.rules.tlsHandshakeLatencyHigh.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      p{{ $q }} TLS handshake with {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+      takes {{ `{{ $value | humanizeDuration }}` }}
+    description: |
+      The p{{ $q }} TLS handshake time with {{ `{{ $labels.domain }}` }} has been above
+      {{ $threshold }}s for 15m while TCP connect is measured separately. A
+      handshake that is slow on top of a normal connect points at CPU
+      starvation on the node or the peer, an egress proxy or middlebox
+      terminating TLS, or certificate chain / OCSP fetches on the peer side.
+
+      Investigate: AstrolavosTCPConnectLatencyHigh for the same target (if
+      it fires too, the network is slow, not TLS), node CPU throttling, and
+      whether egress for this destination goes through a proxy.
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.totalLatencyHigh" -}}
+{{- $r := .rule -}}
+{{- $q := required "alerts.rules.totalLatencyHigh.quantile is required" $r.quantile -}}
+{{- $threshold := required "alerts.rules.totalLatencyHigh.threshold is required" $r.threshold -}}
+- alert: AstrolavosTotalLatencyHigh
+  expr: |
+    {{ include "astrolavos.alerts.quantile" (dict "quantile" $q "metric" "total" "selector" .selector) }}
+      > {{ $threshold }}
+    {{- with include "astrolavos.alerts.exclusions" . }}
+    {{- . | nindent 4 }}
+    {{- end }}
+  for: {{ required "alerts.rules.totalLatencyHigh.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      p{{ $q }} request latency to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+      is {{ `{{ $value | humanizeDuration }}` }}
+    description: |
+      The p{{ $q }} end-to-end time of HTTP probes to {{ `{{ $labels.domain }}` }} (DNS +
+      connect + TLS + time to first byte + body) has been above {{ $threshold }}s
+      for 15m.
+
+      Investigate which phase grew, using the same quantile over
+      astrolavos_dns_latency_seconds_bucket, astrolavos_conn_latency_seconds_bucket,
+      astrolavos_tls_latency_seconds_bucket and astrolavos_firstbyte_latency_seconds_bucket
+      for domain="{{ `{{ $labels.domain }}` }}". Only first-byte growing means the
+      peer is slow; connect growing means the network is.
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.connectLatencyRegression" -}}
+{{- $r := .rule -}}
+{{- $q := required "alerts.rules.connectLatencyRegression.quantile is required" $r.quantile -}}
+{{- $factor := required "alerts.rules.connectLatencyRegression.factor is required" $r.factor -}}
+{{- $baseline := required "alerts.rules.connectLatencyRegression.baseline is required" $r.baseline -}}
+{{- $floor := required "alerts.rules.connectLatencyRegression.floor is required" $r.floor -}}
+{{- $now := include "astrolavos.alerts.quantile" (dict "quantile" $q "metric" "conn" "selector" .selector) -}}
+{{- $then := include "astrolavos.alerts.quantile" (dict "quantile" $q "metric" "conn" "selector" .selector "offset" $baseline) -}}
+- alert: AstrolavosConnectLatencyRegression
+  expr: |
+    (
+      {{ $now }}
+        > {{ $factor }} *
+      {{ $then }}
+    )
+    and
+    {{ $now }}
+      > {{ $floor }}
+    {{- with include "astrolavos.alerts.exclusions" . }}
+    {{- . | nindent 4 }}
+    {{- end }}
+  for: {{ required "alerts.rules.connectLatencyRegression.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      p{{ $q }} TCP connect latency to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+      is {{ `{{ $value | humanizeDuration }}` }}, over {{ $factor }}x its value {{ $baseline }} ago
+    description: |
+      The p{{ $q }} TCP connect time to {{ `{{ $labels.domain }}` }} is more than {{ $factor }}
+      times what it was {{ $baseline }} ago (and above the {{ $floor }}s noise floor).
+      Nothing may have crossed an absolute threshold, but the path changed:
+      traffic that used to stay in-zone is now crossing AZs (Service
+      trafficDistribution / topology hints no longer honoured), a route or
+      peering changed, or the peer moved.
+
+      Investigate: where the probe traffic lands now vs before (endpoint
+      zones, kubectl get endpointslices), recent networking or Service
+      changes, and the per-node split
+        histogram_quantile({{ $q }}, sum by (pod, le) (rate(astrolavos_conn_latency_seconds_bucket{domain="{{ `{{ $labels.domain }}` }}"}[15m])))
+{{- end -}}
