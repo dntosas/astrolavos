@@ -48,3 +48,22 @@ endpoints:
     prober: httpTrace
     tag: "internal-service"
     reuseConnection: false
+
+  # Long-lived WebSocket to another astrolavos' /echo (or any WebSocket
+  # server): one connection kept open, a ping every interval, pong expected
+  # within timeout. A heartbeat that stops coming back while reconnects work
+  # is a black-holed flow (CNI / egress-gateway rollout).
+  - domain: "astrolavos.other-cluster.example.com/echo"
+    prober: websocket
+    https: true
+    interval: 5s
+    timeout: 5s
+    tag: "egress-stream"
+
+  # Same idea over plain TCP against the astrolavos TCP echo listener
+  # (ASTROLAVOS_ECHO_PORT, 3001 by default).
+  - domain: "astrolavos:3001"
+    prober: tcpStream
+    interval: 5s
+    timeout: 5s
+    tag: "internal-tcp-stream"

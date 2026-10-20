@@ -35,10 +35,12 @@ Each endpoint entry has the following structure:
 ```
 - `domain`: the IP or domain name that will be used
 - `interval`: the time period in seconds that will be used between the different probe attempts. Default is 5 seconds.
-- `prober`: the type of the measurement. For now we support `httpTrace` and `tcp` (case-sensitive). The default is `httpTrace`.
-- `https`: in case of `httpTrace` measurement if we will use TLS or not.
-    - `httpTrace`, are measurements that track all phases of HTTP calls and they are based on [httptrace](https://golang.google.cn/pkg/net/http/httptrace/) golang library. This was inspired by [httpstat](https://github.com/reorx/httpstat) cli tool.
-    - `tcp`, are measurements that try to open a simple TCP connection.
+- `prober`: the type of the measurement: `httpTrace`, `tcp`, `websocket` or `tcpStream` (case-sensitive). The default is `httpTrace`.
+- `https`: for `httpTrace` (http/https) and `websocket` (ws/wss) measurements, whether to use TLS.
+    - `httpTrace`, are measurements that track all phases of HTTP calls and they are based on [httptrace](https://golang.google.cn/pkg/net/http/httptrace/) golang library. This was inspired by [httpstat](https://github.com/reorx/httpstat) cli tool. One request per `interval`.
+    - `tcp`, are measurements that try to open a simple TCP connection. One dial per `interval`.
+    - `websocket`, holds **one** WebSocket open to `domain` (e.g. `astrolavos/echo`) for as long as it lives and sends a ping every `interval`, expecting the pong within `timeout`. Any RFC 6455 server answers pings, so any WebSocket endpoint is a valid target. A failed heartbeat closes the connection and reconnects with backoff.
+    - `tcpStream`, holds **one** plain TCP connection to `domain` (`host:port`) and sends a newline-framed `ping <seq>` every `interval`, expecting the same line echoed back within `timeout`. Needs an echo peer such as the astrolavos TCP echo listener (`ASTROLAVOS_ECHO_PORT`).
 - `tag`: the tags that you might want to attach to Prometheus metrics that astrolavos is exposing.
 - `retries`: how many times to attempt the probe. Default is 1 (single attempt, no retries). For production environments experiencing cluster scaling events, consider increasing to 5+ to handle transient failures gracefully with exponential backoff.
 - `reuseConnection`: keep the HTTP connection open between probes (`httpTrace` only). Default `false`, i.e. every probe opens a new connection. Set it to `true` on at least one external endpoint to detect stale connections (see below).
@@ -59,6 +61,10 @@ Astrolavos implements **exponential backoff retry logic** when `retries` is set 
 
 ### Detecting Stale Connections
 A CNI or egress-gateway rollout can silently break *established* connections while new ones keep working: packets of existing flows are dropped without a reset and the application hangs until its own timeout. A prober that opens a fresh connection every time never sees this. Set `reuseConnection: true` on an endpoint that crosses the path you care about (for example your egress target) and astrolavos will keep the connection between probes; every metric carries a `conn_reused="true|false"` label, so a probe that times out on a reused connection while fresh connections succeed is exactly the signature of that failure. The Helm chart ships the matching `AstrolavosStaleConnections` alert, and the Grafana dashboard has a "Connection" selector to look at keep-alive and new connections separately.
+
+HTTP keep-alive is opportunistic (peers close idle connections after seconds), so for a connection that is *guaranteed* to be long-lived use the stream probers. A `websocket` or `tcpStream` endpoint keeps a single connection open for its whole life and heartbeats it: every heartbeat is a `conn_reused="true"` request, every (re)connect a `conn_reused="false"` one, so the same alert applies, and two extra metrics describe the connection itself: `astrolavos_stream_connection_age_seconds` (0 while disconnected) and `astrolavos_stream_reconnects_total{reason}`. The chart alerts on a stream that keeps reconnecting (`AstrolavosStreamReconnecting`) and, more importantly, on more than half of the pods losing their stream within the same 5 minutes (`AstrolavosStreamReconnectBurst`): established flows do not die fleet-wide on their own, a dataplane event did it.
+
+Every astrolavos instance can be the peer: `GET /echo` on the HTTP port upgrades to a WebSocket that echoes messages and answers pings, and `ASTROLAVOS_ECHO_PORT` (default `3001`, `0` disables) serves a plain TCP echo for `tcpStream`. The Helm chart's default config probes the release's own `/echo` through its Service; point a second cluster's astrolavos at it through your egress path to watch the path your workloads use.
 
 ### Running Modes
 Astrolavos can run either as a server mode, where we expose `latency` endpoint that another astrolavos deployment can target from different cluster and `metrics` endpoint that we expose our metrics in prometheus format.
@@ -101,7 +107,7 @@ Astrolavos follows [Semantic Versioning](https://semver.org). The application an
 - the `config.yaml` schema and its defaults
 - the `ASTROLAVOS_*` environment variables
 - Prometheus metric names and label sets (adding a label is considered backwards compatible; `conn_reused` was added to every probe metric in 1.5)
-- the HTTP endpoints `/metrics`, `/live`, `/ready`, `/prestop`, `/latency` and `/status`
+- the HTTP endpoints `/metrics`, `/live`, `/ready`, `/prestop`, `/latency`, `/status` and `/echo`
 - Helm chart values (removals are announced one minor release ahead)
 
 Breaking changes are marked with a `!` in the commit subject and listed under "Breaking changes" in the release notes.
