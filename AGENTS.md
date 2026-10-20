@@ -12,7 +12,7 @@ internal/
   config/                       # YAML + Viper config loading and validation
   machinery/                    # Core app orchestration: agent lifecycle, HTTP server, graceful shutdown
   handlers/                     # HTTP handlers: /live, /ready, /metrics, /latency, /status
-  probers/                      # Prober interface + implementations (httpTrace, tcp)
+  probers/                      # Prober interface + implementations (httptrace, tcp, stream: websocket + tcpStream)
   metrics/                      # Prometheus histogram/counter registration, push gateway
   model/                        # Shared domain types (Endpoint struct)
 deploy/kubernetes/              # Helm chart (DaemonSet by default, Deployment optional)
@@ -86,6 +86,7 @@ make e2e ASTROLAVOS_VERSION=v1.0.0
 - Use `//nolint:<linter>` with a justification comment when suppressing a lint.
 - All packages live under `internal/` — nothing is exported outside the module.
 - Prober implementations must satisfy the `probers.Prober` interface (`String()` + `Run(ctx)`).
+- Long-lived probers (`websocket`, `tcpStream`) are one engine, `probers.Stream` in `stream.go`, over a `streamDialer`/`streamConn` pair (`stream_websocket.go`, `stream_tcp.go`). Add a transport by implementing the pair, not by copying the loop. Heartbeats are `conn_reused="true"` requests, connects `conn_reused="false"`, plus `astrolavos_stream_connection_age_seconds` and `astrolavos_stream_reconnects_total{reason}`. The echo peers live in `handlers/echo.go` (`/echo` WebSocket) and `machinery/echo.go` (TCP listener on `ASTROLAVOS_ECHO_PORT`).
 - Use `ProberConfig.runLoop()` for the one-off vs interval execution pattern — do not reimplement ticker logic.
 - Use `ProberConfig.retryWithBackoff()` for retry logic — do not write custom retry loops.
 - Error categories in metrics use `metrics.CategorizeError()` to prevent label cardinality explosion. Never pass raw error strings as Prometheus labels.
@@ -110,7 +111,7 @@ make e2e ASTROLAVOS_VERSION=v1.0.0
 4. Use `p.retryWithBackoff(ctx, fn)` for resilient probing.
 5. Register the new type in `internal/machinery/agent.go` switch statement.
 6. Add unit tests in `internal/probers/<name>_test.go`.
-7. Update `internal/config/config.go` validation to accept the new prober name.
+7. Add the new prober name to `validProbers` in `internal/config/config.go` and, if it needs a URL scheme, to `endpointURI`.
 8. Add alerting rules for whatever the prober (or any new metric/label) makes observable: a values entry under `alerts.rules.<key>` with a `# --` comment, a `astrolavos.alerts.rule.<key>` template in `deploy/kubernetes/templates/_alerts.tpl`, the key in the right group list in `templates/alerts.yaml`, and tests in `tests/alerts_test.yaml`. Check whether existing rules need the new `prober_type` or error category (e.g. a prober that records histograms makes the latency rules apply to it; a new `metrics.CategorizeError` category may deserve its own ratio rule like `dnsResolutionFailing`). Then `make helm-docs`.
 
 ## Helm Chart
@@ -224,6 +225,7 @@ release exists for the tag is it consumed and immutable; cut a patch instead.
 | `ASTROLAVOS_PROM_PUSH_GW`   | `localhost` | Prometheus push gateway address          |
 | `ASTROLAVOS_MAX_PAYLOAD_SIZE`| `0`         | Max latency endpoint payload (0 = 10MB)  |
 | `ASTROLAVOS_HISTOGRAM_BUCKETS`| `metrics.DefaultTimeBuckets` | Comma-separated latency histogram bucket bounds in seconds; overrides `metrics.histogramBuckets` in `config.yaml` |
+| `ASTROLAVOS_ECHO_PORT`       | `3001`      | TCP echo listener port for `tcpStream` peers; `0` disables it |
 
 ## Do Not
 

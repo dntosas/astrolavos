@@ -47,6 +47,8 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | alerts.rules.probeFailureRatioHigh | object | `{"enabled":true,"for":"10m","severity":"critical","threshold":0.1}` | Probe error ratio per (domain, tag, prober_type) above `threshold` for `for`: the network path is down for the whole cluster |
 | alerts.rules.probeStalled | object | `{"enabled":true,"for":"10m","severity":"warning"}` | A scraped astrolavos pod produced no probe at all for `for`: stuck goroutines or an empty endpoint list |
 | alerts.rules.staleConnections | object | `{"enabled":true,"for":"5m","severity":"critical","threshold":0.1}` | Timeouts on reused (keep-alive) connections above `threshold` while fresh connections to the same target succeed: established flows are black-holed, e.g. by a CNI/egress-gateway rollout. Needs at least one endpoint with `reuseConnection: true`. |
+| alerts.rules.streamReconnectBurst | object | `{"enabled":true,"for":"1m","severity":"critical","threshold":0.5}` | Fraction of pods whose stream connection was severed within 5m above `threshold`: a dataplane event (CNI agent restart, egress gateway reselection) killed established flows fleet-wide |
+| alerts.rules.streamReconnecting | object | `{"enabled":true,"for":"5m","severity":"warning","threshold":3}` | A websocket/tcpStream endpoint reconnected more than `threshold` times in 10m: the long-lived connection cannot stay up |
 | alerts.rules.targetsDown | object | `{"enabled":true,"for":"10m","severity":"critical","threshold":0.2}` | Fraction of astrolavos scrape targets with `up == 0` above `threshold`, or no targets at all: the prober itself is down |
 | alerts.rules.tcpConnectLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.1}` | p`quantile` TCP connect latency (seconds) above `threshold`: RTT or SYN loss on the path, independent of the application |
 | alerts.rules.tlsHandshakeLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.5}` | p`quantile` TLS handshake latency (seconds) above `threshold`: node CPU starvation or an egress middlebox terminating TLS |
@@ -68,7 +70,14 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | config.endpoints[0].reuseConnection | bool | `false` |  |
 | config.endpoints[0].tag | string | `"example"` |  |
 | config.endpoints[0].timeout | string | `"10s"` |  |
+| config.endpoints[1].domain | string | `"{{ include \"common.names.fullname\" . }}/echo"` |  |
+| config.endpoints[1].https | bool | `false` |  |
+| config.endpoints[1].interval | string | `"5s"` |  |
+| config.endpoints[1].prober | string | `"websocket"` |  |
+| config.endpoints[1].tag | string | `"internal-stream"` |  |
+| config.endpoints[1].timeout | string | `"5s"` |  |
 | config.metrics.histogramBuckets | list | `[0.001,0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5]` | Latency histogram bucket upper bounds in seconds, shared by all `astrolavos_*_latency_seconds` histograms. Must be strictly increasing. Overridable at runtime via the `ASTROLAVOS_HISTOGRAM_BUCKETS` env var (comma-separated). |
+| containerPorts.echo | int | `3001` | TCP echo listener port, rendered only when `echo.enabled` |
 | containerPorts.http | int | `3000` |  |
 | containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
 | containerSecurityContext.enabled | bool | `true` |  |
@@ -84,6 +93,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | datadogDashboard.namespace | string | `""` | Override the namespace for the DatadogDashboard resource (defaults to release namespace) |
 | datadogDashboard.title | string | `"Astrolavos Network Metrics"` | Dashboard title (supports tpl rendering, e.g. "{{ include \"common.names.fullname\" . }} Network Metrics") |
 | deployAsDaemonSet | bool | `true` |  |
+| echo.enabled | bool | `true` | Run the TCP echo listener on `containerPorts.echo` and expose it as Service port `echo`. When false the listener is disabled (`ASTROLAVOS_ECHO_PORT=0`) and the ports are not rendered. |
 | extraArgs | object | `{}` |  |
 | extraEnvVars | object | `{}` | Extra environment variables as a name/value map. Takes precedence over `config.application.logLevel` for `ASTROLAVOS_LOG_LEVEL`. |
 | extraVolumeMounts | list | `[]` | Optionally specify extra list of additional volumeMounts for the Redis&reg; master container(s) |
@@ -162,6 +172,7 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | service.internalTrafficPolicy | string | `"Cluster"` |  |
 | service.loadBalancerSourceRanges | list | `[]` |  |
 | service.nodePorts.http | string | `""` |  |
+| service.ports.echo | int | `3001` | Service port for the TCP echo listener (targets container port `echo`); rendered only when `echo.enabled` |
 | service.ports.http | int | `3000` |  |
 | service.sessionAffinity | string | `"None"` |  |
 | service.sessionAffinityConfig | object | `{}` |  |
