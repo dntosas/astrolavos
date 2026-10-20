@@ -40,6 +40,11 @@ type PrometheusClient struct {
 	totalLatencyHistogram     *prometheus.HistogramVec
 	totalRequestsCounter      *prometheus.CounterVec
 	totalErrorsCounter        *prometheus.CounterVec
+
+	// Stream probers (websocket, tcpStream) keep one connection open; these
+	// two describe that connection on top of the per-heartbeat metrics above.
+	streamConnectionAge *prometheus.GaugeVec
+	streamReconnects    *prometheus.CounterVec
 }
 
 // NewPrometheusClient initializes a new Prometheus client and registers all metrics
@@ -85,6 +90,20 @@ func newPrometheusClient(reg prometheus.Registerer, promPushGateway string, buck
 			},
 			[]string{"domain", "tag", "error", "prober_type", "conn_reused"},
 		),
+		streamConnectionAge: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "astrolavos_stream_connection_age_seconds",
+				Help: "Age of the current long-lived stream connection at the last heartbeat; 0 while disconnected",
+			},
+			[]string{"domain", "tag", "prober_type"},
+		),
+		streamReconnects: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "astrolavos_stream_reconnects_total",
+				Help: "Stream connections dropped after a failed heartbeat, by error category",
+			},
+			[]string{"domain", "tag", "prober_type", "reason"},
+		),
 	}
 
 	collectors := []prometheus.Collector{
@@ -96,6 +115,8 @@ func newPrometheusClient(reg prometheus.Registerer, promPushGateway string, buck
 		p.totalLatencyHistogram,
 		p.totalRequestsCounter,
 		p.totalErrorsCounter,
+		p.streamConnectionAge,
+		p.streamReconnects,
 	}
 
 	reg.MustRegister(collectors...)
@@ -171,6 +192,18 @@ func (p *PrometheusClient) UpdateErrorsCounter(domain, proberType, tag string, r
 	category := CategorizeError(err)
 	p.totalErrorsCounter.WithLabelValues(domain, tag, category, proberType, ReusedLabel(reused)).Inc()
 	log.Debug("Updated metric for total errors counter")
+}
+
+// SetStreamConnectionAge records how long the current stream connection has
+// been up, in seconds (0 while disconnected).
+func (p *PrometheusClient) SetStreamConnectionAge(domain, proberType, tag string, seconds float64) {
+	p.streamConnectionAge.WithLabelValues(domain, tag, proberType).Set(seconds)
+}
+
+// IncStreamReconnects counts a stream connection dropped after a failed
+// heartbeat, bucketing the cause with CategorizeError.
+func (p *PrometheusClient) IncStreamReconnects(domain, proberType, tag string, err error) {
+	p.streamReconnects.WithLabelValues(domain, tag, proberType, CategorizeError(err)).Inc()
 }
 
 // errorPattern maps an error message substring to a known error category.
