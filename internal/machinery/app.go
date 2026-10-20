@@ -3,6 +3,7 @@ package machinery
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -46,6 +47,7 @@ const (
 // Astrolavos is the main application struct that orchestrates the agent and HTTP server.
 type Astrolavos struct {
 	port           int
+	echoPort       int
 	agent          *agent
 	endpoints      []*model.Endpoint
 	version        string
@@ -56,13 +58,15 @@ type Astrolavos struct {
 
 // NewAstrolavos creates a new Astrolavos application instance.
 // histogramBuckets are the latency histogram upper bounds in seconds; an empty
-// slice selects metrics.DefaultTimeBuckets.
-func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, version string, maxPayloadSize int, isOneOff bool, histogramBuckets []float64) *Astrolavos {
+// slice selects metrics.DefaultTimeBuckets. echoPort is the TCP echo listener
+// port for tcpStream peers; 0 disables it.
+func NewAstrolavos(port int, endpoints []*model.Endpoint, promPushGateway string, version string, maxPayloadSize int, isOneOff bool, histogramBuckets []float64, echoPort int) *Astrolavos {
 	promC := metrics.NewPrometheusClient(isOneOff, promPushGateway, histogramBuckets)
 	a := newAgent(endpoints, isOneOff, promC)
 
 	return &Astrolavos{
 		port:           port,
+		echoPort:       echoPort,
 		agent:          a,
 		endpoints:      endpoints,
 		version:        version,
@@ -98,6 +102,11 @@ func (a *Astrolavos) startServerMode() error {
 	log.Debug("Starting Agent")
 	a.agent.start(ctx)
 
+	echoLn, err := startEchoListener(ctx, a.echoPort)
+	if err != nil {
+		return err
+	}
+
 	server := a.newHTTPServer()
 
 	go func() {
@@ -121,7 +130,7 @@ func (a *Astrolavos) startServerMode() error {
 
 	log.Info("Shutdown signal received")
 
-	return a.gracefulShutdown(cancel, server)
+	return a.gracefulShutdown(cancel, server, echoLn)
 }
 
 // newHTTPServer wires up routes and returns a configured *http.Server.
@@ -133,6 +142,9 @@ func (a *Astrolavos) newHTTPServer() *http.Server {
 	mux.HandleFunc("/prestop", health.PreStopHandler(a.health, preStopDrainDuration))
 	mux.HandleFunc("/latency", handlers.NewLatencyHandler(a.maxPayloadSize))
 	mux.HandleFunc("/status", handlers.NewStatusHandler(a.version, a.endpoints))
+	// WebSocket echo for websocket stream probers. The upgrade hijacks the
+	// connection, so the server timeouts below do not apply to it.
+	mux.HandleFunc("/echo", handlers.NewEchoHandler())
 
 	return &http.Server{
 		Addr:              fmt.Sprintf(":%d", a.port),
@@ -148,14 +160,21 @@ func (a *Astrolavos) newHTTPServer() *http.Server {
 // In Kubernetes the preStop hook already marked the pod not-ready and
 // waited for endpoint propagation; the short drain here is a safety net
 // for non-K8s environments.
-func (a *Astrolavos) gracefulShutdown(cancel context.CancelFunc, server *http.Server) error {
+func (a *Astrolavos) gracefulShutdown(cancel context.CancelFunc, server *http.Server, echoLn net.Listener) error {
 	a.health.SetNotReady()
 	log.WithField("delay", shutdownDrainDelay).Info("Marked as not-ready, safety drain")
 
 	time.Sleep(shutdownDrainDelay)
 	log.Info("Safety drain complete")
 
+	// Cancelling the context stops the probers and closes every echo
+	// connection; closing the listener stops new ones.
 	cancel()
+
+	if echoLn != nil {
+		_ = echoLn.Close()
+	}
+
 	a.agent.wait()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), httpServerShutdownTimeout)
