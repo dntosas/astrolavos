@@ -427,33 +427,33 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.groups
-          count: 3
+          count: 4
       - equal:
-          path: spec.groups[2].name
+          path: spec.groups[3].name
           value: astrolavos.selfhealth
       - equal:
-          path: spec.groups[2].rules[0].alert
+          path: spec.groups[3].rules[0].alert
           value: AstrolavosProbeStalled
       - equal:
-          path: spec.groups[2].rules[0].expr
+          path: spec.groups[3].rules[0].expr
           value: |
             up{job="astrolavos"} == 1
             unless on (pod)
             sum by (pod) (rate(astrolavos_requests_total[10m])) > 0
       - equal:
-          path: spec.groups[2].rules[0].for
+          path: spec.groups[3].rules[0].for
           value: 10m
       - equal:
-          path: spec.groups[2].rules[1].alert
+          path: spec.groups[3].rules[1].alert
           value: AstrolavosTargetsDown
       - equal:
-          path: spec.groups[2].rules[1].expr
+          path: spec.groups[3].rules[1].expr
           value: |
             count(up{job="astrolavos"} == 0) / count(up{job="astrolavos"}) > 0.2
             or
             absent(up{job="astrolavos"})
       - equal:
-          path: spec.groups[2].rules[1].labels.severity
+          path: spec.groups[3].rules[1].labels.severity
           value: critical
 
   - it: uses alerts.job for the self-health rules when set
@@ -466,10 +466,10 @@ tests:
         job: netprobe
     asserts:
       - matchRegex:
-          path: spec.groups[2].rules[0].expr
+          path: spec.groups[3].rules[0].expr
           pattern: '^up\{job="netprobe"\} == 1\n'
       - matchRegex:
-          path: spec.groups[2].rules[1].expr
+          path: spec.groups[3].rules[1].expr
           pattern: 'count\(up\{job="netprobe"\} == 0\)'
 
   - it: follows the chart fullname for the job label
@@ -483,7 +483,7 @@ tests:
         enabled: true
     asserts:
       - matchRegex:
-          path: spec.groups[2].rules[0].expr
+          path: spec.groups[3].rules[0].expr
           pattern: '^up\{job="astrolavos-probe"\} == 1\n'
 
   - it: appends additionalRules as a templated custom group
@@ -504,15 +504,15 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.groups
-          count: 4
+          count: 5
       - equal:
-          path: spec.groups[3].name
+          path: spec.groups[4].name
           value: astrolavos.custom
       - equal:
-          path: spec.groups[3].interval
+          path: spec.groups[4].interval
           value: 2m
       - equal:
-          path: spec.groups[3].rules
+          path: spec.groups[4].rules
           value:
             - alert: AstrolavosEgressDown
               expr: 'sum(rate(astrolavos_errors_total{tag="egress"}[5m])) > 0'
@@ -536,10 +536,10 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.groups
-          count: 2
+          count: 3
       - equal:
-          path: spec.groups[1].name
-          value: astrolavos.latency
+          path: spec.groups[2].name
+          value: astrolavos.stream
 
   - it: renders nothing when every rule is disabled and no additionalRules are given
     capabilities:
@@ -555,6 +555,8 @@ tests:
           httpNon2xxRatioHigh: {enabled: false}
           staleConnections: {enabled: false}
           endpointStalled: {enabled: false}
+          streamReconnecting: {enabled: false}
+          streamReconnectBurst: {enabled: false}
           tcpConnectLatencyHigh: {enabled: false}
           dnsLatencyHigh: {enabled: false}
           tlsHandshakeLatencyHigh: {enabled: false}
@@ -627,3 +629,45 @@ tests:
       - matchRegex:
           path: spec.groups[0].rules[4].expr
           pattern: '> 0\.3\n\)\n$'
+
+  - it: renders the stream group between latency and self-health
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+    asserts:
+      - equal:
+          path: spec.groups[2].name
+          value: astrolavos.stream
+      - lengthEqual:
+          path: spec.groups[2].rules
+          count: 2
+      - equal:
+          path: spec.groups[2].rules[0].alert
+          value: AstrolavosStreamReconnecting
+      - matchRegex:
+          path: spec.groups[2].rules[0].expr
+          pattern: '^sum by \(domain, tag, prober_type\) \(increase\(astrolavos_stream_reconnects_total\[10m\]\)\) > 3\n$'
+      - equal:
+          path: spec.groups[2].rules[0].for
+          value: 5m
+      - equal:
+          path: spec.groups[2].rules[0].labels.severity
+          value: warning
+      - equal:
+          path: spec.groups[2].rules[1].alert
+          value: AstrolavosStreamReconnectBurst
+      - matchRegex:
+          path: spec.groups[2].rules[1].expr
+          pattern: 'count by \(domain, tag, prober_type\) \(\n  sum by \(pod, domain, tag, prober_type\) \(increase\(astrolavos_stream_reconnects_total\[5m\]\)\) > 0\n\)'
+      - matchRegex:
+          path: spec.groups[2].rules[1].expr
+          pattern: 'count by \(domain, tag, prober_type\) \(astrolavos_stream_connection_age_seconds\)\n  > 0\.5\n$'
+      - equal:
+          path: spec.groups[2].rules[1].for
+          value: 1m
+      - equal:
+          path: spec.groups[2].rules[1].labels.severity
+          value: critical

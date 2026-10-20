@@ -114,6 +114,10 @@ spec:
               value: {{ . | squote }}
             {{- end }}
             {{- end }}
+            {{- if not (hasKey $extraEnv "ASTROLAVOS_ECHO_PORT") }}
+            - name: ASTROLAVOS_ECHO_PORT
+              value: {{ ternary (toString .Values.containerPorts.echo) "0" .Values.echo.enabled | squote }}
+            {{- end }}
             {{- range $key, $value := $extraEnv }}
             - name: {{ $key }}
               value: {{ $value | squote }}
@@ -130,8 +134,10 @@ spec:
           ports:
             {{- if .Values.containerPorts }}
             {{- range $key, $value := .Values.containerPorts }}
+            {{- if or (ne $key "echo") $.Values.echo.enabled }}
             - name: {{ $key | squote }}
               containerPort: {{ $value | int }}
+            {{- end }}
             {{- end }}
             {{- end }}
           {{- if .Values.startupProbe }}

@@ -87,6 +87,15 @@ config:
       reuseConnection: false
       # Deadline of one probe attempt; default 10s.
       timeout: 10s
+    # Long-lived WebSocket to this release's own /echo through the Service:
+    # a heartbeat that stops coming back while fresh connections still work
+    # is exactly what a CNI/egress rollout does to established flows.
+    - domain: '{{ include "common.names.fullname" . }}/echo'
+      prober: websocket
+      interval: 5s
+      timeout: 5s
+      https: false
+      tag: "internal-stream"
 
 image:
   registry: ghcr.io
@@ -106,6 +115,8 @@ service:
   annotations: {}
   ports:
     http: 3000
+    # -- Service port for the TCP echo listener (targets container port `echo`); rendered only when `echo.enabled`
+    echo: 3001
   nodePorts:
     http: ""
   extraPorts: []
@@ -133,6 +144,15 @@ service:
 
 containerPorts:
   http: 3000
+  # -- TCP echo listener port, rendered only when `echo.enabled`
+  echo: 3001
+
+## Echo endpoints make this release the peer of `websocket` / `tcpStream`
+## probers (its own or another cluster's). The WebSocket echo at `/echo` is
+## always served on the http port; the plain TCP echo has its own port.
+echo:
+  # -- Run the TCP echo listener on `containerPorts.echo` and expose it as Service port `echo`. When false the listener is disabled (`ASTROLAVOS_ECHO_PORT=0`) and the ports are not rendered.
+  enabled: true
 
 serviceAccount:
   create: true
@@ -407,6 +427,18 @@ alerts:
       enabled: true
       for: 5m
       severity: warning
+    # -- A websocket/tcpStream endpoint reconnected more than `threshold` times in 10m: the long-lived connection cannot stay up
+    streamReconnecting:
+      enabled: true
+      threshold: 3
+      for: 5m
+      severity: warning
+    # -- Fraction of pods whose stream connection was severed within 5m above `threshold`: a dataplane event (CNI agent restart, egress gateway reselection) killed established flows fleet-wide
+    streamReconnectBurst:
+      enabled: true
+      threshold: 0.5
+      for: 1m
+      severity: critical
     # -- p`quantile` TCP connect latency (seconds) above `threshold`: RTT or SYN loss on the path, independent of the application
     tcpConnectLatencyHigh:
       enabled: true

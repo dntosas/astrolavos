@@ -29,6 +29,12 @@ tests:
                 reuseConnection: false
                 tag: example
                 timeout: 10s
+              - domain: 'astrolavos/echo'
+                https: false
+                interval: 5s
+                prober: websocket
+                tag: internal-stream
+                timeout: 5s
 
   - it: omits the metrics block when buckets are empty so the binary default applies
     set:

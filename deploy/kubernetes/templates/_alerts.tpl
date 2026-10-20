@@ -433,6 +433,71 @@ is nothing to exclude.
 {{- end -}}
 
 {{/* ----------------------------------------------------------------------
+     Group astrolavos.stream
+     websocket / tcpStream probers hold one connection open and heartbeat
+     it; these rules describe that connection. Heartbeat timeouts themselves
+     are covered by AstrolavosStaleConnections via conn_reused="true".
+     ---------------------------------------------------------------------- */}}
+
+{{- define "astrolavos.alerts.rule.streamReconnecting" -}}
+{{- $r := .rule -}}
+{{- $threshold := required "alerts.rules.streamReconnecting.threshold is required" $r.threshold -}}
+- alert: AstrolavosStreamReconnecting
+  expr: |
+    sum by (domain, tag, prober_type) (increase(astrolavos_stream_reconnects_total[10m])) > {{ $threshold }}
+  for: {{ required "alerts.rules.streamReconnecting.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      {{ `{{ $labels.prober_type }}` }} stream to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+      reconnected {{ `{{ $value | printf "%.0f" }}` }} times in 10m
+    description: |
+      The long-lived {{ `{{ $labels.prober_type }}` }} connection to {{ `{{ $labels.domain }}` }} was
+      dropped and re-established more than {{ $threshold }} times in 10 minutes.
+      Something on the path does not let a connection live: an idle-killing
+      middlebox or NAT, a flapping CNI datapath, a peer that recycles
+      long-lived connections, or packet loss severe enough to time out
+      heartbeats.
+
+      Investigate the reason split and whether it is one node or all:
+        sum by (reason) (increase(astrolavos_stream_reconnects_total{domain="{{ `{{ $labels.domain }}` }}"}[10m]))
+        sum by (pod) (increase(astrolavos_stream_reconnects_total{domain="{{ `{{ $labels.domain }}` }}"}[10m]))
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.streamReconnectBurst" -}}
+{{- $r := .rule -}}
+{{- $threshold := required "alerts.rules.streamReconnectBurst.threshold is required" $r.threshold -}}
+- alert: AstrolavosStreamReconnectBurst
+  expr: |
+    count by (domain, tag, prober_type) (
+      sum by (pod, domain, tag, prober_type) (increase(astrolavos_stream_reconnects_total[5m])) > 0
+    )
+      /
+    count by (domain, tag, prober_type) (astrolavos_stream_connection_age_seconds)
+      > {{ $threshold }}
+  for: {{ required "alerts.rules.streamReconnectBurst.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      {{ `{{ $value | humanizePercentage }}` }} of pods lost their {{ `{{ $labels.prober_type }}` }} stream
+      to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }}) within 5m
+    description: |
+      More than {{ include "astrolavos.alerts.percent" $threshold }} of the astrolavos pods had their
+      long-lived connection to {{ `{{ $labels.domain }}` }} severed inside the same 5 minute
+      window. Established flows do not die fleet-wide on their own: a
+      dataplane event just did it, typically a CNI agent rollout, an egress
+      gateway reselection or a NAT/conntrack rebuild. Every workload holding
+      long-lived connections across the same path was hit the same way, even
+      if the probe heartbeats have already recovered.
+
+      Investigate what rolled out in the window:
+        kubectl rollout history ds/cilium -n kube-system
+        kubectl get events -A --sort-by=.lastTimestamp | tail -50
+      and which pods/nodes were affected:
+        sum by (pod) (increase(astrolavos_stream_reconnects_total{domain="{{ `{{ $labels.domain }}` }}"}[5m]))
+{{- end -}}
+
+{{/* ----------------------------------------------------------------------
      Group astrolavos.selfhealth
      Watchdogs for the prober itself, so silence is not mistaken for health.
      ---------------------------------------------------------------------- */}}
