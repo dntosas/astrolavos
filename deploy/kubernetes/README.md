@@ -41,10 +41,12 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | alerts.rules.connectLatencyRegression | object | `{"baseline":"1d","enabled":false,"factor":3,"floor":0.005,"for":"30m","quantile":0.99,"severity":"warning"}` | p`quantile` TCP connect latency above `factor` times its own value `baseline` ago and above `floor` seconds: a relative regression (e.g. traffic silently went cross-AZ) that absolute thresholds miss. Needs `baseline` of history; off by default. |
 | alerts.rules.dnsLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.1}` | p`quantile` DNS resolution latency (seconds) above `threshold`: client view of the resolver chain |
 | alerts.rules.dnsResolutionFailing | object | `{"enabled":true,"for":"5m","severity":"critical","threshold":0.05}` | Ratio of probes failing with `error="dns_error"` above `threshold` (5m window): client-side DNS resolution is failing |
+| alerts.rules.endpointStalled | object | `{"enabled":true,"for":"5m","severity":"warning"}` | An endpoint that produced probes in the last hour but none in the last 10m: that prober loop is stuck and the other alerts are blind for it |
 | alerts.rules.httpNon2xxRatioHigh | object | `{"enabled":true,"for":"10m","severity":"warning","threshold":0.1}` | Ratio of httpTrace probes answered with a non-2xx/3xx status above `threshold`: reachable but unhealthy peer (5xx, proxy 403). Failed probes are excluded, see `probeFailureRatioHigh`. |
 | alerts.rules.probeFailingOnSingleNode | object | `{"enabled":true,"for":"10m","severity":"warning","threshold":0.5}` | One pod's (node's) error ratio above `threshold` while the fleet-wide ratio is at or below `probeFailureRatioHigh.threshold`: that node's network is broken. Only meaningful as a DaemonSet. |
 | alerts.rules.probeFailureRatioHigh | object | `{"enabled":true,"for":"10m","severity":"critical","threshold":0.1}` | Probe error ratio per (domain, tag, prober_type) above `threshold` for `for`: the network path is down for the whole cluster |
 | alerts.rules.probeStalled | object | `{"enabled":true,"for":"10m","severity":"warning"}` | A scraped astrolavos pod produced no probe at all for `for`: stuck goroutines or an empty endpoint list |
+| alerts.rules.staleConnections | object | `{"enabled":true,"for":"5m","severity":"critical","threshold":0.1}` | Timeouts on reused (keep-alive) connections above `threshold` while fresh connections to the same target succeed: established flows are black-holed, e.g. by a CNI/egress-gateway rollout. Needs at least one endpoint with `reuseConnection: true`. |
 | alerts.rules.targetsDown | object | `{"enabled":true,"for":"10m","severity":"critical","threshold":0.2}` | Fraction of astrolavos scrape targets with `up == 0` above `threshold`, or no targets at all: the prober itself is down |
 | alerts.rules.tcpConnectLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.1}` | p`quantile` TCP connect latency (seconds) above `threshold`: RTT or SYN loss on the path, independent of the application |
 | alerts.rules.tlsHandshakeLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.5}` | p`quantile` TLS handshake latency (seconds) above `threshold`: node CPU starvation or an egress middlebox terminating TLS |
@@ -63,7 +65,9 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | config.endpoints[0].interval | string | `"10s"` |  |
 | config.endpoints[0].prober | string | `"httpTrace"` |  |
 | config.endpoints[0].retries | int | `1` |  |
+| config.endpoints[0].reuseConnection | bool | `false` |  |
 | config.endpoints[0].tag | string | `"example"` |  |
+| config.endpoints[0].timeout | string | `"10s"` |  |
 | config.metrics.histogramBuckets | list | `[0.001,0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2.5,5]` | Latency histogram bucket upper bounds in seconds, shared by all `astrolavos_*_latency_seconds` histograms. Must be strictly increasing. Overridable at runtime via the `ASTROLAVOS_HISTOGRAM_BUCKETS` env var (comma-separated). |
 | containerPorts.http | int | `3000` |  |
 | containerSecurityContext.capabilities.drop[0] | string | `"ALL"` |  |
