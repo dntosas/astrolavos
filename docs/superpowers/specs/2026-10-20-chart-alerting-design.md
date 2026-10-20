@@ -229,8 +229,13 @@ an empty endpoints list. Per pod, not per endpoint, because a disappearing
 **AstrolavosTargetsDown** (`targetsDown`)
 ```promql
 count(up{job="J"} == 0) / count(up{job="J"}) > R.threshold
+or
+absent(up{job="J"})
 ```
-Watchdog for the prober itself so silence is not mistaken for health.
+Watchdog for the prober itself so silence is not mistaken for health. The
+`absent` arm covers the case where the scrape targets vanish entirely (the
+DaemonSet or ServiceMonitor was deleted), which a ratio over zero targets
+cannot express.
 
 ### Labels and annotations
 
