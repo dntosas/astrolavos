@@ -60,6 +60,10 @@ func (s *Stream) Run(ctx context.Context) {
 	for ctx.Err() == nil {
 		conn, ok := s.connect(ctx)
 		if !ok {
+			if s.isOneOff {
+				return // one attempt, already recorded as a failed connect
+			}
+
 			if !s.sleepBackoff(ctx, attempt) {
 				break
 			}
