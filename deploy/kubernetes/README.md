@@ -28,6 +28,27 @@ A Helm Chart for deploying Astrolavos Latency Measuring Tool
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
+| alerts.additionalLabels | object | `{}` | Extra labels on the rule resource, e.g. `release: kube-prometheus-stack` so the operator's ruleSelector picks it up |
+| alerts.additionalRules | list | `[]` | Raw alerting rules appended verbatim in an `astrolavos.custom` group. Rendered as a template. |
+| alerts.annotations | object | `{}` | Extra annotations on the rule resource |
+| alerts.enabled | bool | `false` | Create a PrometheusRule or VMRule carrying the built-in alerting rules |
+| alerts.interval | string | `""` | Rule group evaluation interval. Omitted when empty (operator default). |
+| alerts.job | string | `""` | Value of the `job` label on astrolavos scrape targets, used by the self-health rules. Defaults to the chart fullname, which is what the chart's ServiceMonitor produces. |
+| alerts.kind | string | `"PrometheusRule"` | Rule CRD to render: `PrometheusRule` (monitoring.coreos.com/v1) or `VMRule` (operator.victoriametrics.com/v1beta1). Only rendered when the matching API group is present in the cluster capabilities. |
+| alerts.labels | object | `{}` | Labels merged into every alert (e.g. `team`, `env`). Each rule's own `severity` wins on conflict. |
+| alerts.latencyOverrides | list | `[]` | Per-target overrides for the latency rules. Each entry re-renders the enabled latency rules with `selector` (raw PromQL matchers, no braces) baked in and an `override: <name>` label; the global latency rules exclude the matched series. Other keys are latency rule names whose `threshold`/`for`/`severity` override the global ones, e.g. `[{name: internal, selector: 'tag="internal"', tcpConnectLatencyHigh: {threshold: 0.01}}]`. |
+| alerts.namespace | string | `""` | Namespace for the rule resource (defaults to the release namespace) |
+| alerts.rules.connectLatencyRegression | object | `{"baseline":"1d","enabled":false,"factor":3,"floor":0.005,"for":"30m","quantile":0.99,"severity":"warning"}` | p`quantile` TCP connect latency above `factor` times its own value `baseline` ago and above `floor` seconds: a relative regression (e.g. traffic silently went cross-AZ) that absolute thresholds miss. Needs `baseline` of history; off by default. |
+| alerts.rules.dnsLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.1}` | p`quantile` DNS resolution latency (seconds) above `threshold`: client view of the resolver chain |
+| alerts.rules.dnsResolutionFailing | object | `{"enabled":true,"for":"5m","severity":"critical","threshold":0.05}` | Ratio of probes failing with `error="dns_error"` above `threshold` (5m window): client-side DNS resolution is failing |
+| alerts.rules.httpNon2xxRatioHigh | object | `{"enabled":true,"for":"10m","severity":"warning","threshold":0.1}` | Ratio of httpTrace probes answered with a non-2xx/3xx status above `threshold`: reachable but unhealthy peer (5xx, proxy 403). Failed probes are excluded, see `probeFailureRatioHigh`. |
+| alerts.rules.probeFailingOnSingleNode | object | `{"enabled":true,"for":"10m","severity":"warning","threshold":0.5}` | One pod's (node's) error ratio above `threshold` while the fleet-wide ratio is at or below `probeFailureRatioHigh.threshold`: that node's network is broken. Only meaningful as a DaemonSet. |
+| alerts.rules.probeFailureRatioHigh | object | `{"enabled":true,"for":"10m","severity":"critical","threshold":0.1}` | Probe error ratio per (domain, tag, prober_type) above `threshold` for `for`: the network path is down for the whole cluster |
+| alerts.rules.probeStalled | object | `{"enabled":true,"for":"10m","severity":"warning"}` | A scraped astrolavos pod produced no probe at all for `for`: stuck goroutines or an empty endpoint list |
+| alerts.rules.targetsDown | object | `{"enabled":true,"for":"10m","severity":"critical","threshold":0.2}` | Fraction of astrolavos scrape targets with `up == 0` above `threshold`, or no targets at all: the prober itself is down |
+| alerts.rules.tcpConnectLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.1}` | p`quantile` TCP connect latency (seconds) above `threshold`: RTT or SYN loss on the path, independent of the application |
+| alerts.rules.tlsHandshakeLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":0.5}` | p`quantile` TLS handshake latency (seconds) above `threshold`: node CPU starvation or an egress middlebox terminating TLS |
+| alerts.rules.totalLatencyHigh | object | `{"enabled":true,"for":"15m","quantile":0.99,"severity":"warning","threshold":1}` | p`quantile` end-to-end request latency (seconds) above `threshold` |
 | autoscaling.enabled | bool | `true` |  |
 | autoscaling.maxReplicas | string | `"5"` |  |
 | autoscaling.minReplicas | string | `"2"` |  |
