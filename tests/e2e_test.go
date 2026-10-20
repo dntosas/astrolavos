@@ -29,25 +29,17 @@ func TestE2EAstrolavos(t *testing.T) {
 	// `helm delete RELEASE_NAME` to clean up any resources that were created.
 	releaseName := fmt.Sprintf("astrolavos-%s", strings.ToLower(random.UniqueId()))
 
-	// Get image tag from environment variable
-	imageTag := os.Getenv("IMAGE_TAG")
-
-	// If the environment variable is empty, set a default value
-	if imageTag == "" {
-		imageTag = "v0.11.0"
-	}
-
-	fmt.Printf("Will test Astrolavos on version: %s\n", imageTag)
+	fmt.Printf("Will test Astrolavos on version: %s\n", imageTag())
 
 	// Setup the chart options. For this test, we will set the following input values:
+	values := imageValues()
+	values["fullnameOverride"] = releaseName
+	values["autoscaling.enabled"] = "false"
+	values["serviceMonitor.enabled"] = "false"
+	values["config.endpoints"] = "- domain: kubernetes\n  interval: 1s\n  https: true"
+
 	options := &helm.Options{
-		SetValues: map[string]string{
-			"fullnameOverride":       releaseName,
-			"image.tag":              imageTag,
-			"autoscaling.enabled":    "false",
-			"serviceMonitor.enabled": "false",
-			"config.endpoints":       "- domain: kubernetes\n  interval: 1s\n  https: true",
-		},
+		SetValues: values,
 		ExtraArgs: map[string][]string{
 			"install": {"--install"},
 		},
@@ -97,4 +89,17 @@ func VerifyExposedMetrics(t *testing.T, kubectlOptions *k8s.KubectlOptions, podN
 			return statusCode == 200 && strings.Contains(body, "domain=\"https://kubernetes\"")
 		},
 	)
+}
+
+// imageTag is the image tag under test; defaults to a known release.
+func imageTag() string {
+	if tag := os.Getenv("IMAGE_TAG"); tag != "" {
+		return tag
+	}
+
+	return "v1.4.0"
+}
+
+func getenv(key string) string {
+	return os.Getenv(key)
 }

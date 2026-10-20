@@ -1,0 +1,46 @@
+# Toxiproxy sits between the astrolavos stream prober and its echo peer in the
+# e2e suite. Port 8474 is the control API, 8000 the proxy the test creates.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: toxiproxy
+  labels:
+    app: toxiproxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: toxiproxy
+  template:
+    metadata:
+      labels:
+        app: toxiproxy
+    spec:
+      containers:
+        - name: toxiproxy
+          image: ghcr.io/shopify/toxiproxy:2.11.0
+          args: ["-host", "0.0.0.0"]
+          ports:
+            - name: api
+              containerPort: 8474
+            - name: proxy
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /version
+              port: api
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: toxiproxy
+spec:
+  selector:
+    app: toxiproxy
+  ports:
+    - name: api
+      port: 8474
+      targetPort: api
+    - name: proxy
+      port: 8000
+      targetPort: proxy
