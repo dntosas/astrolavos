@@ -426,3 +426,32 @@ func TestStream_String(t *testing.T) {
 		t.Errorf("String() = %q, want %q", got, want)
 	}
 }
+
+func TestStream_OneOffConnectFailureReturns(t *testing.T) {
+	d := &fakeDialer{dial: func(int) (probers.StreamConn, error) {
+		return nil, errors.New("dial tcp: connection refused")
+	}}
+
+	s, domain := newStreamForTest(t, d, true)
+
+	done := make(chan struct{})
+
+	go func() {
+		s.Run(context.Background())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("one-off Run did not return after a failed connect")
+	}
+
+	if d.count() != 1 {
+		t.Errorf("dials = %d, want exactly 1 in one-off mode", d.count())
+	}
+
+	if got := counterValue(t, "astrolavos_errors_total", map[string]string{"domain": domain, "conn_reused": "false"}); got != 1 {
+		t.Errorf("connect errors = %v, want 1", got)
+	}
+}
