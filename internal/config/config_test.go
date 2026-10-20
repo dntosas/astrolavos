@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -326,6 +327,50 @@ func TestGetCleanEndpoint_TimeoutMustBePositive(t *testing.T) {
 		_, err := (&YamlEndpoint{Domain: "example.com", Timeout: &bad}).getCleanEndpoint()
 		if err == nil {
 			t.Errorf("expected error for timeout %v", bad)
+		}
+	}
+}
+
+func TestGetCleanEndpoint_WebSocketScheme(t *testing.T) {
+	ep, err := (&YamlEndpoint{Domain: "astrolavos/echo", Prober: "websocket"}).getCleanEndpoint()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if ep.URI != "ws://astrolavos/echo" || ep.ProberType != "websocket" {
+		t.Errorf("got URI=%q prober=%q", ep.URI, ep.ProberType)
+	}
+
+	ep, err = (&YamlEndpoint{Domain: "echo.example.com/echo", Prober: "websocket", HTTPS: true}).getCleanEndpoint()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if ep.URI != "wss://echo.example.com/echo" {
+		t.Errorf("expected wss scheme, got %q", ep.URI)
+	}
+}
+
+func TestGetCleanEndpoint_TCPStreamKeepsHostPort(t *testing.T) {
+	ep, err := (&YamlEndpoint{Domain: "astrolavos:3001", Prober: "tcpStream", HTTPS: true}).getCleanEndpoint()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if ep.URI != "astrolavos:3001" || ep.ProberType != "tcpStream" {
+		t.Errorf("got URI=%q prober=%q", ep.URI, ep.ProberType)
+	}
+}
+
+func TestGetCleanEndpoint_InvalidProberListsAll(t *testing.T) {
+	_, err := (&YamlEndpoint{Domain: "x", Prober: "grpc"}).getCleanEndpoint()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+
+	for _, want := range []string{"tcp", "httpTrace", "websocket", "tcpStream"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
 		}
 	}
 }
