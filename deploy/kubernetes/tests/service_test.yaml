@@ -26,6 +26,9 @@ tests:
               port: 80
               targetPort: 3000
               nodePort: null
+            - name: echo
+              port: 3001
+              targetPort: echo
       - equal:
           path: spec.selector
           value:
@@ -158,7 +161,7 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.ports
-          count: 2
+          count: 3
       - contains:
           path: spec.ports
           content:
@@ -191,3 +194,15 @@ tests:
     asserts:
       - hasDocuments:
           count: 0
+
+  - it: omits the echo port when echo.enabled is false
+    set:
+      echo:
+        enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.ports
+          count: 1
+      - equal:
+          path: spec.ports[0].name
+          value: http

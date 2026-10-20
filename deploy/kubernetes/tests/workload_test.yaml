@@ -135,6 +135,8 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].ports
           value:
+            - name: echo
+              containerPort: 3001
             - name: http
               containerPort: 3000
       - equal:
@@ -190,13 +192,31 @@ tests:
             tcpSocket:
               port: http
 
-  - it: derives ASTROLAVOS_LOG_LEVEL from config.application.logLevel
+  - it: derives ASTROLAVOS_LOG_LEVEL from config.application.logLevel and wires the echo port
     asserts:
       - equal:
           path: spec.template.spec.containers[0].env
           value:
             - name: ASTROLAVOS_LOG_LEVEL
               value: INFO
+            - name: ASTROLAVOS_ECHO_PORT
+              value: "3001"
+
+  - it: disables the TCP echo listener and drops its port when echo.enabled is false
+    set:
+      echo:
+        enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ASTROLAVOS_ECHO_PORT
+            value: "0"
+      - equal:
+          path: spec.template.spec.containers[0].ports
+          value:
+            - name: http
+              containerPort: 3000
 
   - it: lets extraEnvVars override the log level and add variables
     set:
@@ -206,7 +226,7 @@ tests:
     asserts:
       - lengthEqual:
           path: spec.template.spec.containers[0].env
-          count: 2
+          count: 3
       - contains:
           path: spec.template.spec.containers[0].env
           content:
@@ -218,13 +238,16 @@ tests:
             name: ASTROLAVOS_MAX_PAYLOAD_SIZE
             value: "1048576"
 
-  - it: renders no env when the log level is unset and no extraEnvVars are given
+  - it: renders only the echo port env when the log level is unset and no extraEnvVars are given
     set:
       config:
         application: null
     asserts:
-      - isNullOrEmpty:
+      - equal:
           path: spec.template.spec.containers[0].env
+          value:
+            - name: ASTROLAVOS_ECHO_PORT
+              value: "3001"
 
   - it: sources env from a ConfigMap and a Secret
     set:

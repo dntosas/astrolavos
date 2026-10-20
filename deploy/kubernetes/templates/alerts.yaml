@@ -11,6 +11,7 @@ latencyOverrides entry with that entry's selector and thresholds.
 {{- $groups := list
       (dict "name" "astrolavos.reachability" "keys" (list "probeFailureRatioHigh" "probeFailingOnSingleNode" "dnsResolutionFailing" "httpNon2xxRatioHigh" "staleConnections" "endpointStalled"))
       (dict "name" "astrolavos.latency" "keys" (list "tcpConnectLatencyHigh" "dnsLatencyHigh" "tlsHandshakeLatencyHigh" "totalLatencyHigh" "connectLatencyRegression"))
+      (dict "name" "astrolavos.stream" "keys" (list "streamReconnecting" "streamReconnectBurst"))
       (dict "name" "astrolavos.selfhealth" "keys" (list "probeStalled" "targetsDown")) }}
 {{- $anyRule := false }}
 {{- range $groups }}
