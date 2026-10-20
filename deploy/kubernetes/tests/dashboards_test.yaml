@@ -44,6 +44,13 @@ tests:
       - matchRegex:
           path: data["astrolavos-dashboard.json"]
           pattern: 'conn_reused=~\\"\$keepalive\\"'
+      # stream panels
+      - matchRegex:
+          path: data["astrolavos-dashboard.json"]
+          pattern: '"title": "Stream connection age"'
+      - matchRegex:
+          path: data["astrolavos-dashboard.json"]
+          pattern: 'increase\(astrolavos_stream_reconnects_total'
 
   - it: targets a Grafana namespace, folder and custom sidecar label
     set:
@@ -111,6 +118,12 @@ tests:
       - matchRegex:
           path: spec.widgets
           pattern: '\{\$tag,\$endpoint,\$conn_reused\}'
+      - matchRegex:
+          path: spec.widgets
+          pattern: 'astrolavos_stream_connection_age_seconds'
+      - matchRegex:
+          path: spec.widgets
+          pattern: 'astrolavos_stream_reconnects_total'
       - contains:
           path: spec.templateVariables
           content:
