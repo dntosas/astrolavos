@@ -21,7 +21,8 @@ endpoints:
     retries: 1
     prober: httpTrace
     tag: "public-api"
-    reuseConnection: true
+    reuseConnection: true  # keep the connection between probes to detect stale flows
+    timeout: 5s            # deadline per attempt (default 10s)
 
   # Self-signed certificate example with TLS verification disabled
   - domain: "self-signed.badssl.com"

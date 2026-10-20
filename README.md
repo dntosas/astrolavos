@@ -41,6 +41,8 @@ Each endpoint entry has the following structure:
     - `tcp`, are measurements that try to open a simple TCP connection.
 - `tag`: the tags that you might want to attach to Prometheus metrics that astrolavos is exposing.
 - `retries`: how many times to attempt the probe. Default is 1 (single attempt, no retries). For production environments experiencing cluster scaling events, consider increasing to 5+ to handle transient failures gracefully with exponential backoff.
+- `reuseConnection`: keep the HTTP connection open between probes (`httpTrace` only). Default `false`, i.e. every probe opens a new connection. Set it to `true` on at least one external endpoint to detect stale connections (see below).
+- `timeout`: deadline for a single probe attempt (DNS, connect, TLS, request and body for `httpTrace`; the dial for `tcp`). Default `10s`. Each retry gets its own deadline. A probe that hits a black-holed connection fails with `error="timeout"` instead of hanging.
 
 ### Histogram Buckets
 All `astrolavos_*_latency_seconds` histograms share one set of bucket upper bounds (in seconds). The default is `[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]`; trimming the list reduces the number of time series per endpoint, extending it improves quantile resolution. The list must be strictly increasing. Configure it either in the config file:
@@ -54,6 +56,9 @@ or via the `ASTROLAVOS_HISTOGRAM_BUCKETS` env var as a comma-separated list (`AS
 Astrolavos implements **exponential backoff retry logic** when `retries` is set to 2 or higher. When a probe fails, it automatically retries with increasing delays (100ms, 200ms, 400ms, etc.) before reporting an error. This can eliminate false positives during cluster scaling events or temporary network disruptions.
 
 **Note:** The default is `retries: 1` (no retry) for immediate failure detection. Increase retries if you need resilience during operational events such as node rollouts or cluster scaling.
+
+### Detecting Stale Connections
+A CNI or egress-gateway rollout can silently break *established* connections while new ones keep working: packets of existing flows are dropped without a reset and the application hangs until its own timeout. A prober that opens a fresh connection every time never sees this. Set `reuseConnection: true` on an endpoint that crosses the path you care about (for example your egress target) and astrolavos will keep the connection between probes; every metric carries a `conn_reused="true|false"` label, so a probe that times out on a reused connection while fresh connections succeed is exactly the signature of that failure. The Helm chart ships the matching `AstrolavosStaleConnections` alert, and the Grafana dashboard has a "Connection" selector to look at keep-alive and new connections separately.
 
 ### Running Modes
 Astrolavos can run either as a server mode, where we expose `latency` endpoint that another astrolavos deployment can target from different cluster and `metrics` endpoint that we expose our metrics in prometheus format.
@@ -95,7 +100,7 @@ Astrolavos follows [Semantic Versioning](https://semver.org). The application an
 
 - the `config.yaml` schema and its defaults
 - the `ASTROLAVOS_*` environment variables
-- Prometheus metric names and label sets
+- Prometheus metric names and label sets (adding a label is considered backwards compatible; `conn_reused` was added to every probe metric in 1.5)
 - the HTTP endpoints `/metrics`, `/live`, `/ready`, `/prestop`, `/latency` and `/status`
 - Helm chart values (removals are announced one minor release ahead)
 

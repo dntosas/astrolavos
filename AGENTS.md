@@ -89,6 +89,7 @@ make e2e ASTROLAVOS_VERSION=v1.0.0
 - Use `ProberConfig.runLoop()` for the one-off vs interval execution pattern — do not reimplement ticker logic.
 - Use `ProberConfig.retryWithBackoff()` for retry logic — do not write custom retry loops.
 - Error categories in metrics use `metrics.CategorizeError()` to prevent label cardinality explosion. Never pass raw error strings as Prometheus labels.
+- Every probe metric carries `conn_reused` (`metrics.ReusedLabel`), taken from `httptrace.GotConnInfo.Reused`; pass the value through from the prober, never recompute or default it in `metrics`. Each probe attempt is bounded by the endpoint `timeout` via `ProberConfig.attemptContext()`; a prober must never issue network I/O with the bare run context.
 - Structured logging: always use `log.WithField`/`log.WithFields` for context, not string interpolation.
 - Config defaults are set in `initViper()`. Environment variables override YAML via `ASTROLAVOS_` prefix.
 - Latency histogram buckets are shared by all `astrolavos_*_latency_seconds` metrics and resolved as env (`ASTROLAVOS_HISTOGRAM_BUCKETS`) > `config.yaml` (`metrics.histogramBuckets`) > `metrics.DefaultTimeBuckets`. Validation (finite, strictly increasing) lives in `internal/config`; `metrics.NewPrometheusClient` only falls back to the default on an empty slice.
