@@ -416,3 +416,150 @@ tests:
     asserts:
       - failedTemplate:
           errorPattern: 'alerts.latencyOverrides\[\].selector is required'
+
+  - it: renders the self-health group against the chart job label
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+    asserts:
+      - lengthEqual:
+          path: spec.groups
+          count: 3
+      - equal:
+          path: spec.groups[2].name
+          value: astrolavos.selfhealth
+      - equal:
+          path: spec.groups[2].rules[0].alert
+          value: AstrolavosProbeStalled
+      - equal:
+          path: spec.groups[2].rules[0].expr
+          value: |
+            up{job="astrolavos"} == 1
+            unless on (pod)
+            sum by (pod) (rate(astrolavos_requests_total[10m])) > 0
+      - equal:
+          path: spec.groups[2].rules[0].for
+          value: 10m
+      - equal:
+          path: spec.groups[2].rules[1].alert
+          value: AstrolavosTargetsDown
+      - equal:
+          path: spec.groups[2].rules[1].expr
+          value: |
+            count(up{job="astrolavos"} == 0) / count(up{job="astrolavos"}) > 0.2
+            or
+            absent(up{job="astrolavos"})
+      - equal:
+          path: spec.groups[2].rules[1].labels.severity
+          value: critical
+
+  - it: uses alerts.job for the self-health rules when set
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        job: netprobe
+    asserts:
+      - matchRegex:
+          path: spec.groups[2].rules[0].expr
+          pattern: '^up\{job="netprobe"\} == 1\n'
+      - matchRegex:
+          path: spec.groups[2].rules[1].expr
+          pattern: 'count\(up\{job="netprobe"\} == 0\)'
+
+  - it: follows the chart fullname for the job label
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      fullnameOverride: ""
+      nameOverride: probe
+      alerts:
+        enabled: true
+    asserts:
+      - matchRegex:
+          path: spec.groups[2].rules[0].expr
+          pattern: '^up\{job="astrolavos-probe"\} == 1\n'
+
+  - it: appends additionalRules as a templated custom group
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        interval: 2m
+        additionalRules:
+          - alert: AstrolavosEgressDown
+            expr: 'sum(rate(astrolavos_errors_total{tag="egress"}[5m])) > 0'
+            for: 5m
+            labels:
+              severity: critical
+              release: "{{ .Release.Name }}"
+    asserts:
+      - lengthEqual:
+          path: spec.groups
+          count: 4
+      - equal:
+          path: spec.groups[3].name
+          value: astrolavos.custom
+      - equal:
+          path: spec.groups[3].interval
+          value: 2m
+      - equal:
+          path: spec.groups[3].rules
+          value:
+            - alert: AstrolavosEgressDown
+              expr: 'sum(rate(astrolavos_errors_total{tag="egress"}[5m])) > 0'
+              for: 5m
+              labels:
+                severity: critical
+                release: astrolavos
+
+  - it: drops a group whose rules are all disabled
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        rules:
+          probeStalled:
+            enabled: false
+          targetsDown:
+            enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.groups
+          count: 2
+      - equal:
+          path: spec.groups[1].name
+          value: astrolavos.latency
+
+  - it: renders nothing when every rule is disabled and no additionalRules are given
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        rules:
+          probeFailureRatioHigh: {enabled: false}
+          probeFailingOnSingleNode: {enabled: false}
+          dnsResolutionFailing: {enabled: false}
+          httpNon2xxRatioHigh: {enabled: false}
+          tcpConnectLatencyHigh: {enabled: false}
+          dnsLatencyHigh: {enabled: false}
+          tlsHandshakeLatencyHigh: {enabled: false}
+          totalLatencyHigh: {enabled: false}
+          connectLatencyRegression: {enabled: false}
+          probeStalled: {enabled: false}
+          targetsDown: {enabled: false}
+    asserts:
+      - hasDocuments:
+          count: 0

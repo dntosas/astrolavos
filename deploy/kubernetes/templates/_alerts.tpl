@@ -364,3 +364,60 @@ is nothing to exclude.
       changes, and the per-node split
         histogram_quantile({{ $q }}, sum by (pod, le) (rate(astrolavos_conn_latency_seconds_bucket{domain="{{ `{{ $labels.domain }}` }}"}[15m])))
 {{- end -}}
+
+{{/* ----------------------------------------------------------------------
+     Group astrolavos.selfhealth
+     Watchdogs for the prober itself, so silence is not mistaken for health.
+     ---------------------------------------------------------------------- */}}
+
+{{- define "astrolavos.alerts.rule.probeStalled" -}}
+{{- $r := .rule -}}
+{{- $job := include "astrolavos.alerts.job" .context -}}
+- alert: AstrolavosProbeStalled
+  expr: |
+    up{job="{{ $job }}"} == 1
+    unless on (pod)
+    sum by (pod) (rate(astrolavos_requests_total[10m])) > 0
+  for: {{ required "alerts.rules.probeStalled.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      astrolavos pod {{ `{{ $labels.pod }}` }} is scraped but has not probed anything for 10m
+    description: |
+      {{ `{{ $labels.pod }}` }} answers scrapes (up == 1) but astrolavos_requests_total has
+      not moved for any endpoint in 10m. Either every prober goroutine is
+      stuck (a hung dial that ignores its timeout) or the pod started with an
+      empty endpoint list. Latency and failure alerts are blind for this node
+      until it recovers.
+
+      Investigate:
+        kubectl logs -n <namespace> {{ `{{ $labels.pod }}` }}
+        kubectl get configmap -n <namespace> -l app.kubernetes.io/name=astrolavos -o yaml
+      Restarting the pod clears a stuck prober.
+{{- end -}}
+
+{{- define "astrolavos.alerts.rule.targetsDown" -}}
+{{- $r := .rule -}}
+{{- $job := include "astrolavos.alerts.job" .context -}}
+{{- $threshold := required "alerts.rules.targetsDown.threshold is required" $r.threshold -}}
+- alert: AstrolavosTargetsDown
+  expr: |
+    count(up{job="{{ $job }}"} == 0) / count(up{job="{{ $job }}"}) > {{ $threshold }}
+    or
+    absent(up{job="{{ $job }}"})
+  for: {{ required "alerts.rules.targetsDown.for is required" $r.for }}
+  labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
+  annotations:
+    summary: >-
+      astrolavos scrape targets down (job {{ $job }})
+    description: |
+      More than {{ include "astrolavos.alerts.percent" $threshold }} of astrolavos pods are not being scraped
+      (up == 0), or no target exists at all. Every other astrolavos alert is
+      blind while this fires: a quiet dashboard does not mean the network is
+      healthy.
+
+      Investigate:
+        kubectl get pods -n <namespace> -l app.kubernetes.io/name=astrolavos -o wide
+        kubectl get servicemonitor -n <namespace> {{ $job }}
+      and the scrape target page of Prometheus / vmagent for job="{{ $job }}".
+{{- end -}}
