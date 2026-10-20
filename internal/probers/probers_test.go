@@ -10,6 +10,8 @@ import (
 
 	"github.com/dntosas/astrolavos/internal/metrics"
 	"github.com/dntosas/astrolavos/internal/probers"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 // testPromC is a shared Prometheus client to avoid double-registration panics.
@@ -196,4 +198,89 @@ func TestContextCancellationStopsRetries(_ *testing.T) {
 	// short-lived context. The test passes if it completes before the
 	// overall test timeout.
 	<-ctx.Done()
+}
+
+// counterValue sums the samples of a counter family whose labels contain want.
+func counterValue(t *testing.T, name string, want map[string]string) float64 {
+	t.Helper()
+
+	families, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatalf("gather: %v", err)
+	}
+
+	var total float64
+
+	for _, f := range families {
+		if f.GetName() != name {
+			continue
+		}
+
+	metrics:
+		for _, m := range f.GetMetric() {
+			labels := map[string]string{}
+			for _, l := range m.GetLabel() {
+				labels[l.GetName()] = l.GetValue()
+			}
+
+			for k, v := range want {
+				if labels[k] != v {
+					continue metrics
+				}
+			}
+
+			total += m.GetCounter().GetValue()
+		}
+	}
+
+	return total
+}
+
+// blackholeServer accepts connections and never answers, like a flow whose
+// packets are silently dropped by the datapath.
+func blackholeServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		<-release
+	}))
+
+	t.Cleanup(func() {
+		close(release)
+		srv.Close()
+	})
+
+	return srv
+}
+
+func TestHTTPTrace_TimeoutUnblocksHungProbe(t *testing.T) {
+	srv := blackholeServer(t)
+
+	cfg := probers.NewProberConfig(probers.ProberOptions{
+		WG:         newTestWG(),
+		PromClient: testPromC,
+		Endpoint:   srv.URL,
+		Interval:   time.Second,
+		Retries:    1,
+		IsOneOff:   true,
+		Timeout:    200 * time.Millisecond,
+	})
+
+	done := make(chan struct{})
+
+	go func() {
+		probers.NewHTTPTrace(cfg).Run(context.Background())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("probe did not return within 2s; timeout not applied")
+	}
+
+	if got := counterValue(t, "astrolavos_errors_total", map[string]string{"domain": srv.URL, "error": "timeout"}); got != 1 {
+		t.Errorf("expected 1 timeout error for %s, got %v", srv.URL, got)
+	}
 }

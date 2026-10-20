@@ -296,3 +296,36 @@ func TestNewConfig_InvalidHistogramBucketsFailsFast(t *testing.T) {
 		t.Fatal("expected error for non-increasing buckets")
 	}
 }
+
+func TestGetCleanEndpoint_TimeoutDefault(t *testing.T) {
+	ep, err := (&YamlEndpoint{Domain: "example.com"}).getCleanEndpoint()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if ep.Timeout != 10*time.Second {
+		t.Errorf("expected default timeout 10s, got %v", ep.Timeout)
+	}
+}
+
+func TestGetCleanEndpoint_TimeoutCustom(t *testing.T) {
+	timeout := 2 * time.Second
+
+	ep, err := (&YamlEndpoint{Domain: "example.com", Timeout: &timeout}).getCleanEndpoint()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if ep.Timeout != timeout {
+		t.Errorf("expected timeout %v, got %v", timeout, ep.Timeout)
+	}
+}
+
+func TestGetCleanEndpoint_TimeoutMustBePositive(t *testing.T) {
+	for _, bad := range []time.Duration{0, -time.Second} {
+		_, err := (&YamlEndpoint{Domain: "example.com", Timeout: &bad}).getCleanEndpoint()
+		if err == nil {
+			t.Errorf("expected error for timeout %v", bad)
+		}
+	}
+}

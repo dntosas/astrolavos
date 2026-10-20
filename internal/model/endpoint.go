@@ -13,4 +13,7 @@ type Endpoint struct {
 	ReuseConnection     bool
 	SkipTLSVerification bool
 	TCPTimeout          time.Duration
+	// Timeout bounds a single probe attempt (DNS, connect, TLS, request and
+	// body for httpTrace; the dial for tcp).
+	Timeout time.Duration
 }
