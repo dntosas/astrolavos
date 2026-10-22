@@ -57,11 +57,7 @@ func (d *wsDialer) Dial(ctx context.Context) (streamConn, connectTimings, error)
 	t.setFirstByteDuration()
 	t.setTotalDuration()
 
-	// CloseRead runs the reader goroutine that delivers pongs to Ping; the
-	// returned context ends when the connection is closed by either side.
-	readCtx := c.CloseRead(context.Background())
-
-	return &wsConn{c: c, readCtx: readCtx}, connectTimings{
+	return &wsConn{c: c, readCtx: drainReads(c)}, connectTimings{
 		dns:       t.dnsDuration,
 		conn:      t.connDuration,
 		tls:       t.tlsDuration,
@@ -69,6 +65,31 @@ func (d *wsDialer) Dial(ctx context.Context) (streamConn, connectTimings, error)
 		firstByte: t.firstByteDuration,
 		total:     t.totalDuration,
 	}, nil
+}
+
+// drainReads runs the reader goroutine that delivers pongs to Ping and
+// discards any data frames the peer sends. The returned context ends when
+// the connection is closed by either side, with the read error as cause.
+//
+// This is deliberately not websocket.Conn.CloseRead: that helper closes the
+// connection with StatusPolicyViolation on the first data message, and
+// public echo servers (echo.websocket.org for one) greet every new
+// connection with a text frame. Pings work against any RFC 6455 server, so
+// unsolicited application data must be tolerated, not treated as a fault.
+func drainReads(c *websocket.Conn) context.Context {
+	ctx, cancel := context.WithCancelCause(context.Background())
+
+	go func() {
+		for {
+			if _, _, err := c.Read(ctx); err != nil {
+				cancel(err)
+
+				return
+			}
+		}
+	}()
+
+	return ctx
 }
 
 // wsConn heartbeats a WebSocket with ping/pong frames.

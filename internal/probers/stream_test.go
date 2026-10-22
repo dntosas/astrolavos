@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 	"github.com/dntosas/astrolavos/internal/handlers"
 	"github.com/dntosas/astrolavos/internal/probers"
 
+	"github.com/coder/websocket"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -389,6 +391,78 @@ func TestWebSocketStream_BlackholeIsDetected(t *testing.T) {
 	// the upgrade was traced: connect phases landed as a fresh connection
 	if got := counterValue(t, "astrolavos_requests_total", map[string]string{"domain": domain, "conn_reused": "false", "prober_type": "websocket"}); got < 2 {
 		t.Errorf("expected at least 2 websocket connects, got %v", got)
+	}
+}
+
+// chattyWebSocketServer accepts WebSocket connections, immediately sends an
+// unsolicited text frame (public echo servers such as echo.websocket.org
+// greet with "Request served by ...") and then keeps reading so pings are
+// answered with pongs.
+func chattyWebSocketServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := websocket.Accept(w, r, nil)
+		if err != nil {
+			return
+		}
+
+		defer c.CloseNow()
+
+		if err := c.Write(r.Context(), websocket.MessageText, []byte("Request served by test")); err != nil {
+			return
+		}
+
+		for {
+			if _, _, err := c.Read(r.Context()); err != nil {
+				return
+			}
+		}
+	}))
+
+	t.Cleanup(srv.Close)
+
+	return srv
+}
+
+func TestWebSocketStream_IgnoresUnsolicitedDataFrames(t *testing.T) {
+	srv := chattyWebSocketServer(t)
+	domain := "ws://" + strings.TrimPrefix(srv.URL, "http://")
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	cfg := probers.NewProberConfig(probers.ProberOptions{
+		WG:         &wg,
+		PromClient: testPromC,
+		Endpoint:   domain,
+		Interval:   50 * time.Millisecond,
+		Timeout:    150 * time.Millisecond,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go probers.NewWebSocketStream(cfg).Run(ctx)
+
+	// several heartbeats must succeed on the same connection
+	waitFor(t, 3*time.Second, func() bool {
+		return counterValue(t, "astrolavos_requests_total", map[string]string{"domain": domain, "conn_reused": "true"}) >= 3
+	})
+
+	cancel()
+	wg.Wait()
+
+	if got := counterValue(t, "astrolavos_stream_reconnects_total", map[string]string{"domain": domain}); got != 0 {
+		t.Errorf("a greeting frame caused %v reconnects, want 0", got)
+	}
+
+	if got := counterValue(t, "astrolavos_errors_total", map[string]string{"domain": domain, "conn_reused": "true"}); got != 0 {
+		t.Errorf("heartbeat errors = %v, want 0", got)
+	}
+
+	if got := counterValue(t, "astrolavos_requests_total", map[string]string{"domain": domain, "conn_reused": "false"}); got != 1 {
+		t.Errorf("connects = %v, want exactly 1", got)
 	}
 }
 
