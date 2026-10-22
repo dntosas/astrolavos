@@ -452,20 +452,22 @@ is nothing to exclude.
 {{- $threshold := required "alerts.rules.streamReconnecting.threshold is required" $r.threshold -}}
 - alert: AstrolavosStreamReconnecting
   expr: |
-    sum by (domain, tag, prober_type) (increase(astrolavos_stream_reconnects_total[10m])) > {{ $threshold }}
+    sum by (pod, domain, tag, prober_type) (increase(astrolavos_stream_reconnects_total[10m])) > {{ $threshold }}
   for: {{ required "alerts.rules.streamReconnecting.for is required" $r.for }}
   labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
   annotations:
     summary: >-
-      {{ `{{ $labels.prober_type }}` }} stream to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
+      {{ `{{ $labels.pod }}` }}: {{ `{{ $labels.prober_type }}` }} stream to {{ `{{ $labels.domain }}` }} ({{ `{{ $labels.tag }}` }})
       reconnected {{ `{{ $value | printf "%.0f" }}` }} times in 10m
     description: |
-      The long-lived {{ `{{ $labels.prober_type }}` }} connection to {{ `{{ $labels.domain }}` }} was
-      dropped and re-established more than {{ $threshold }} times in 10 minutes.
-      Something on the path does not let a connection live: an idle-killing
-      middlebox or NAT, a flapping CNI datapath, a peer that recycles
-      long-lived connections, or packet loss severe enough to time out
-      heartbeats.
+      The long-lived {{ `{{ $labels.prober_type }}` }} connection from {{ `{{ $labels.pod }}` }} to
+      {{ `{{ $labels.domain }}` }} was dropped and re-established more than {{ $threshold }} times
+      in 10 minutes. Each pod holds exactly one connection per endpoint, so
+      the count is per path, not per fleet: something on this path does not
+      let a connection live: an idle-killing middlebox or NAT, a flapping CNI
+      datapath, a peer that recycles long-lived connections, or packet loss
+      severe enough to time out heartbeats. Many pods firing at once is a
+      fleet-wide event; see AstrolavosStreamReconnectBurst.
 
       Investigate the reason split and whether it is one node or all:
         sum by (reason) (increase(astrolavos_stream_reconnects_total{domain="{{ `{{ $labels.domain }}` }}"}[10m]))
