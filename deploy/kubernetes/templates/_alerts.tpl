@@ -223,6 +223,7 @@ Percentage text for a ratio threshold, e.g. 0.05 -> "5%".
 
 {{- define "astrolavos.alerts.rule.endpointStalled" -}}
 {{- $r := .rule -}}
+{{- $job := include "astrolavos.alerts.job" .context -}}
 - alert: AstrolavosEndpointStalled
   expr: |
     (
@@ -231,6 +232,10 @@ Percentage text for a ratio threshold, e.g. 0.05 -> "5%".
     unless
     (
       sum by (pod, domain, tag, prober_type) (increase(astrolavos_requests_total[10m])) > 0
+    )
+    and on (pod)
+    (
+      up{job="{{ $job }}"} == 1
     )
   for: {{ required "alerts.rules.endpointStalled.for is required" $r.for }}
   labels: {{- include "astrolavos.alerts.labels" . | nindent 4 }}
@@ -245,6 +250,9 @@ Percentage text for a ratio threshold, e.g. 0.05 -> "5%".
       so this should not happen; treat it as a bug and capture the logs
       before restarting:
         kubectl logs -n <namespace> {{ `{{ $labels.pod }}` }}
+      Pods that were terminated in the last hour (node scale-down, rollout)
+      are excluded by the up{} guard: their series stop too, but nothing is
+      stuck.
 {{- end -}}
 
 {{/* ----------------------------------------------------------------------
