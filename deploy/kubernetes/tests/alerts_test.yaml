@@ -603,12 +603,29 @@ tests:
       - matchRegex:
           path: spec.groups[0].rules[5].expr
           pattern: 'increase\(astrolavos_requests_total\[1h\]\)\) > 0\n\)\nunless\n\(\n  sum by \(pod, domain, tag, prober_type\) \(increase\(astrolavos_requests_total\[10m\]\)\) > 0'
+      # a pod that left in the last hour is not stalled, it is gone
+      - matchRegex:
+          path: spec.groups[0].rules[5].expr
+          pattern: '> 0\n\)\nand on \(pod\)\n\(\n  up\{job="astrolavos"\} == 1\n\)\n$'
       - equal:
           path: spec.groups[0].rules[5].for
           value: 5m
       - equal:
           path: spec.groups[0].rules[5].labels.severity
           value: warning
+
+  - it: guards the endpoint-stall rule with the configured job label
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1
+    set:
+      alerts:
+        enabled: true
+        job: netprobe
+    asserts:
+      - matchRegex:
+          path: spec.groups[0].rules[5].expr
+          pattern: 'and on \(pod\)\n\(\n  up\{job="netprobe"\} == 1\n\)\n$'
 
   - it: guards the stale-connection rule with the path-wide threshold
     capabilities:

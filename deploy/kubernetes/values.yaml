@@ -422,7 +422,7 @@ alerts:
       threshold: 0.1
       for: 5m
       severity: critical
-    # -- An endpoint that produced probes in the last hour but none in the last 10m: that prober loop is stuck and the other alerts are blind for it
+    # -- An endpoint on a still-scraped pod that produced probes in the last hour but none in the last 10m: that prober loop is stuck and the other alerts are blind for it (terminated pods are excluded)
     endpointStalled:
       enabled: true
       for: 5m
