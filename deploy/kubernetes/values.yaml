@@ -427,7 +427,7 @@ alerts:
       enabled: true
       for: 5m
       severity: warning
-    # -- A websocket/tcpStream endpoint reconnected more than `threshold` times in 10m: the long-lived connection cannot stay up
+    # -- One pod's websocket/tcpStream connection to an endpoint reconnected more than `threshold` times in 10m: the long-lived connection cannot stay up on that path
     streamReconnecting:
       enabled: true
       threshold: 3

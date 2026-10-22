@@ -664,9 +664,14 @@ tests:
       - equal:
           path: spec.groups[2].rules[0].alert
           value: AstrolavosStreamReconnecting
+      # per pod: one pod holds one connection per endpoint, so the count is
+      # independent of fleet size and of unrelated pods churning
       - matchRegex:
           path: spec.groups[2].rules[0].expr
-          pattern: '^sum by \(domain, tag, prober_type\) \(increase\(astrolavos_stream_reconnects_total\[10m\]\)\) > 3\n$'
+          pattern: '^sum by \(pod, domain, tag, prober_type\) \(increase\(astrolavos_stream_reconnects_total\[10m\]\)\) > 3\n$'
+      - matchRegex:
+          path: spec.groups[2].rules[0].annotations.summary
+          pattern: '^\{\{ \$labels.pod \}\}'
       - equal:
           path: spec.groups[2].rules[0].for
           value: 5m
